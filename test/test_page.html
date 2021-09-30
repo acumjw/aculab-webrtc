@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Aculab Cloud WebRTC demo</title>
+	<link rel="icon" type="image/gif" href="/images/favicon.gif" />
+	<script type='application/javascript' src='../dist/AculabCloudCaller.js'></script>
+	<script type='application/javascript'>
+	var acc = null;
+	var inbound_enabled = false;
+	var slots = new Map([
+		['a', {'call': null, 'inbound':false, 'connected':false, 'player':null, 'playing_ringing':false, 'gotremotestream':false}],
+		['b', {'call': null, 'inbound':false, 'connected':false, 'player':null, 'playing_ringing':false, 'gotremotestream':false}],
+		['c', {'call': null, 'inbound':false, 'connected':false, 'player':null, 'playing_ringing':false, 'gotremotestream':false}],
+		['d', {'call': null, 'inbound':false, 'connected':false, 'player':null, 'playing_ringing':false, 'gotremotestream':false}],
+	]);
+	var statsTimer = null;
+	function startStats() {
+		statsTimer = setInterval(()=>{
+			for (const [key, value] of slots.entries()) {
+				var stat = "No call";
+				if (value.call) {
+					value.call.getConnectionInfo().then(stat => {
+						document.getElementById(key + "-stats").value = stat;
+					});
+				} else {
+					document.getElementById(key + "-stats").value = "No call";
+				}
+			}
+		}, 1000);
+	}
+	function stopStats() {
+		if (statsTimer) {
+			clearInterval(statsTimer);
+			statsTimer = null;
+			for (const [key, value] of slots.entries()) {
+				var stat = "No call";
+				document.getElementById(key + "-stats").value = stat;
+			}
+		}
+	}
+	function configDtmfButtons(slot, enabled) {
+		var dtmf_table = document.getElementById(slot + '-dtmf-buttons');
+		var buttons = dtmf_table.getElementsByTagName('button');
+		for (var i=0; i < buttons.length; i++) {
+			buttons.item(i).disabled = !enabled;
+		}
+	}
+	function gotmedia(slot, obj) {
+		var slot_obj = slots.get(slot);
+		var player = slot_obj.player;
+		player.pause();
+		player.loop = '';
+		player.src = '';
+		player.srcObject = null;
+		player.type = '';
+		player.load();
+		// reset the player size
+		player.style.width = "320px";
+		player.style.height = "240px";
+		slot_obj.playing_ringing = false;
+		slot_obj.gotremotestream = false;
+		if (obj !== null) {
+			slot_obj.gotremotestream = true;
+			player.srcObject = obj.stream;
+			player.load();
+			var p = player.play();
+			if (p !== undefined) {
+				p.catch(error => {console.log(error)});
+			}
+		}
+	}
+	function handle_disconnect(slot, cause) {
+		var slot_obj = slots.get(slot);
+		slot_obj.connected=false;
+		if (slot_obj.call != null) {
+			slot_obj.call.disconnect();
+			slot_obj.call = null;
+		}
+		gotmedia(slot, null);
+		var localplayer = slot_obj.localplayer;
+		localplayer.pause();
+		localplayer.loop = '';
+		localplayer.src = '';
+		localplayer.srcObject = null;
+		localplayer.type = '';
+		localplayer.load();
+		document.getElementById(slot + "-state").value = "Idle - " + cause;
+		document.getElementById(slot + "-callid").value = "(previous) " + document.getElementById(slot + "-callid").value;
+		document.getElementById(slot + "-remote").value = "";
+		document.getElementById(slot + "-start_button").disabled = false;
+		document.getElementById(slot + "-stop_button").disabled = true;
+		document.getElementById(slot + "-mute-mic").disabled = true;
+		document.getElementById(slot + "-mute-mic").checked = false;
+		document.getElementById(slot + "-mute-cam").disabled = true;
+		document.getElementById(slot + "-mute-cam").checked = false;
+		document.getElementById(slot + "-mute-outa").disabled = true;
+		document.getElementById(slot + "-mute-outa").checked = false;
+		document.getElementById(slot + "-mute-outv").disabled = true;
+		document.getElementById(slot + "-mute-outv").checked = false;
+		document.getElementById(slot + "-target-type").disabled = false;
+		document.getElementById(slot + "-target").disabled = false;
+		configDtmfButtons(slot, false);
+	}
+	function call_disconnected(slot, obj) {
+		var slot_obj = slots.get(slot);
+		slot_obj.call = null;
+		handle_disconnect(slot, obj.cause);
+	}
+	function connecting(slot, obj) {
+		var slot_obj = slots.get(slot);
+		document.getElementById(slot + "-state").value = "Connecting";
+		document.getElementById(slot + "-callid").value = slot_obj.call.callId();
+		slot_obj.localplayer.srcObject = obj.stream;
+		slot_obj.localplayer.load();
+		var p = slot_obj.localplayer.play();
+		if (p !== undefined) {
+			p.catch(error => {});
+		}
+	}
+	function ringing(slot) {
+		var slot_obj = slots.get(slot);
+		document.getElementById(slot + "-state").value = "Ringing";
+		if (!slot_obj.playing_ringing) {
+			var player = slot_obj.player;
+			if (player.canPlayType('audio/wav')) {
+				if (!slot_obj.gotremotestream) {
+					player.loop = 'loop';
+					player.src = 'media/ringback.wav';
+					player.type="audio/wav";
+					player.load();
+					var p = player.play();
+					if (p !== undefined) {
+						p.catch(error => {});
+					}
+				}
+			} else {
+				console.log("browser can't play audio/wav, so no ringing will be heard");
+			}
+			slot_obj.playing_ringing = true;
+		}
+	}
+	function connected(slot) {
+		var slot_obj = slots.get(slot);
+		slot_obj.connected=true;
+		if (!slot_obj.gotremotestream) {
+			gotmedia(slot, null);
+		}
+		document.getElementById(slot + "-state").value = "Connected";
+		document.getElementById(slot + "-start_button").disabled = true;
+		document.getElementById(slot + "-stop_button").disabled = false;
+		document.getElementById(slot + "-mute-mic").disabled = false;
+		document.getElementById(slot + "-mute-cam").disabled = false;
+		document.getElementById(slot + "-mute-outa").disabled = false;
+		document.getElementById(slot + "-mute-outv").disabled = false;
+		configDtmfButtons(slot, true);
+	}
+	function handle_error(slot, obj) {
+		handle_disconnect(slot, obj.error);
+	}
+	function mute_call(slot) {
+		var slot_obj = slots.get(slot);
+		if (slot_obj.call) {
+			var mic = document.getElementById(slot + "-mute-mic").checked;
+			var cam = document.getElementById(slot + "-mute-cam").checked;
+			var outa = document.getElementById(slot + "-mute-outa").checked;
+			var outv = document.getElementById(slot + "-mute-outv").checked;
+			slot_obj.call.mute(mic, outa, cam, outv);
+		}
+	}
+
+	function get_audio_constraints(slot) {
+		let val = document.getElementById(slot + "-audio-constraints").value;
+		if (val == "true") {
+			return true;
+		} else if (val == "false") {
+			return false;
+		}
+		return true; // a default?
+	}
+
+	function get_video_constraints(slot) {
+		let val = document.getElementById(slot + "-video-constraints").value;
+		if (val == "true") {
+			return true;
+		} else if (val == "false") {
+			return false;
+		} else if (val == "qvga-exact") {
+			return { width: {exact: "320"}, height:{exact: "240"}};
+		} else if (val == "qvga-ideal") {
+			return { width: "320", height: "240"};
+		} else if (val == "vga-exact") {
+			return { width: {exact: "640"}, height:{exact: "480"}};
+		} else if (val == "vga-ideal") {
+			return { width: "640", height: "480"};
+		} else if (val == "xga-exact") {
+			return { width: {exact: "1024"}, height:{exact: "768"}};
+		} else if (val == "xga-ideal") {
+			return { width: "1024", height: "768"};
+		} else if (val == "hd720-exact") {
+			return { width: {exact: "1280"}, height:{exact: "720"}};
+		} else if (val == "hd720-ideal") {
+			return { width: "1280", height: "720"};
+		} else if (val == "hd1080-exact") {
+			return { width: {exact: "1920"}, height:{exact: "1080"}};
+		} else if (val == "hd1080-ideal") {
+			return { width: "1920", height: "1080"};
+		}
+		return true; // a default?
+	}
+
+	function get_receive_setting(slot, type) {
+		let sel = document.getElementById(slot + "-" + type + "-receive");
+		if (sel) {
+			let val = sel.value;
+			if (val == "true") {
+				return true;
+			} else if (val == "false") {
+				return false;
+			}
+		}
+		return undefined;
+	}
+
+	function get_bandwidth_setting(slot, type) {
+		let sel = document.getElementById(slot + "-" + type + "-bandwidth");
+		if (sel) {
+			let val = sel.value;
+			if (val == "unlimited") {
+				return Infinity;
+			} else if (val == "not set") {
+				return undefined;
+			}
+			return parseInt(val, 10);
+		}
+		return undefined;
+	}
+
+	function set_codec_selector(slot, type) {
+		let sel = document.getElementById(slot + "-" + type + "-codecs");
+		if (sel) {
+			sel.innerHTML = ''; // clear first
+			let codecs = AculabCloudClient.getCodecList(type);
+			codecs.forEach(codec => {
+				if (['video/red', 'video/ulpfec', 'video/rtx', 'audio/CN', 'audio/telephone-event'].includes(codec.mimeType)) {
+					return;
+				}
+				const option = document.createElement('option');
+				option.value = (codec.mimeType + ' ' + (codec.sdpFmtpLine || '')).trim();
+				option.innerText = option.value;
+				sel.appendChild(option);
+			});
+		}
+	}
+
+	function get_codec_selection(slot, type) {
+		let sel = document.getElementById(slot + "-" + type + "-codecs");
+		let codecs = AculabCloudClient.getCodecList(type);
+		if (sel) {
+			const [mimeType, sdpFmtpLine] = sel.value.split(' ');
+			const selectedCodecIndex = codecs.findIndex(c => c.mimeType === mimeType && c.sdpFmtpLine === sdpFmtpLine);
+			const selectedCodec = codecs[selectedCodecIndex];
+			codecs.splice(selectedCodecIndex, 1);
+			codecs.unshift(selectedCodec);
+			console.log(codecs);
+		}
+		return codecs;
+	}
+
+	function start_call(slot) {
+		var slot_obj = slots.get(slot);
+		var opts = {
+			constraints: {
+				audio: get_audio_constraints(slot),
+				video: get_video_constraints(slot),
+			},
+			receiveAudio: get_receive_setting(slot, "audio"),
+			receiveVideo: get_receive_setting(slot, "video"),
+			codecs: {
+				audio: get_codec_selection(slot, "audio"),
+				video: get_codec_selection(slot, "video"),
+			},
+			maxBitrateAudio: get_bandwidth_setting(slot, 'audio'),
+			maxBitrateVideo: get_bandwidth_setting(slot, 'video'),
+		}
+		if (slot_obj.call) {
+			if (slot_obj.inbound && !slot_obj.connected) {
+				console.log("accepting inbound");
+				document.getElementById(slot + "-state").value = "Accepting call";
+				document.getElementById(slot + "-start_button").disabled = true;
+				document.getElementById(slot + "-stop_button").disabled = false;
+				slot_obj.call.answer(opts);
+			} else {
+				console.log("not starting call - call in progress");
+			}
+		} else {
+			console.log("starting call");
+			document.getElementById(slot + "-state").value = "Starting call";
+			type = document.getElementById(slot + "-target-type").value;
+			targ = document.getElementById(slot + "-target").value;
+			if (type == 'client') {
+				token = document.getElementById("token").value;
+				try {
+					slot_obj.call = acc.callClient(encodeURIComponent(targ), token, opts);
+				}
+				catch(err) {
+					alert("Error: " + err);
+					return;
+				}
+			} else {
+				slot_obj.call = acc.callService(encodeURIComponent(targ));
+			}
+			document.getElementById(slot + "-callid").value = '';
+			slot_obj.call.onDisconnect = call_disconnected.bind(null, slot);
+			slot_obj.call.onRinging = ringing.bind(null, slot);
+			slot_obj.call.onMedia = gotmedia.bind(null, slot);
+			slot_obj.call.onConnecting = connecting.bind(null, slot);
+			slot_obj.call.onConnected = connected.bind(null, slot);
+			slot_obj.call.onError = handle_error.bind(null, slot);
+			slot_obj.inbound = false;
+			document.getElementById(slot + "-remote").value = type + ": " + targ;
+			document.getElementById(slot + "-target-type").disabled = true;
+			document.getElementById(slot + "-target").disabled = true;
+			document.getElementById(slot + "-start_button").disabled = true;
+			document.getElementById(slot + "-stop_button").disabled = false;
+		}
+	}
+	function stop_call(slot) {
+		var slot_obj = slots.get(slot);
+		console.log("stopping call");
+		if (slot_obj.call) {
+			// if inbound and not accepted, use reject instead
+			if (slot_obj.inbound && !slot_obj.connected) {
+				slot_obj.call.reject(486);
+			} else {
+				slot_obj.call.disconnect();
+			}
+		}
+		document.getElementById(slot + "-stop_button").disabled = true;
+		configDtmfButtons(slot, false);
+	}
+	function send_dtmf(slot, dtmf) {
+		var slot_obj = slots.get(slot);
+		if (slot_obj.call) {
+			console.log("send dtmf:" + dtmf);
+			slot_obj.call.sendDtmf(dtmf);
+		}
+	}
+	function new_call(obj) {
+		var slot = '';
+		var slot_obj = null;
+		for (var [s, o] of slots) {
+			if (o.call == null) {
+				slot = s;
+				slot_obj = o;
+				break;
+			}
+		}
+		if (slot_obj == null) {
+			obj.call.reject(486);
+			return;
+		}
+		document.getElementById(slot + "-start_button").disabled = false;
+		document.getElementById(slot + "-stop_button").disabled = false;
+		document.getElementById(slot + "-state").value = "Incoming";
+		document.getElementById(slot + "-callid").value = obj.call.callId();
+		var from = obj.from + " [" + obj.type + "]";
+		if (obj.offeringVideo) {
+			from += " (offering video)";
+		}
+		if (obj.canReceiveVideo) {
+			from += " (wants video)";
+		}
+		document.getElementById(slot + "-remote").value = from;
+		document.getElementById(slot + "-target-type").disabled = true;
+		document.getElementById(slot + "-target").disabled = true;
+		slot_obj.call = obj.call;
+		slot_obj.inbound = true;
+		
+		slot_obj.call.onDisconnect = call_disconnected.bind(null, slot);
+		slot_obj.call.onRinging = ringing.bind(null, slot);
+		slot_obj.call.onMedia = gotmedia.bind(null, slot);
+		slot_obj.call.onConnecting = connecting.bind(null, slot);
+		slot_obj.call.onConnected = connected.bind(null, slot);
+		slot_obj.call.onError = handle_error.bind(null, slot);
+		
+		var player = slot_obj.player;
+		if (player.canPlayType('audio/wav')) {
+			if (!slot_obj.gotremotestream) {
+				player.loop = 'loop';
+				player.src = 'media/ringing.wav';
+				player.type="audio/wav";
+				player.load();
+				var p = player.play();
+				if (p !== undefined) {
+					p.catch(error => {});
+				}
+			}
+		} else {
+			console.log("browser can't play audio/wav, so no ringing will be heard");
+		}
+		slot_obj.call.ringing();
+	}
+	function incomingState(state) {
+		if (state.ready) {
+			//document.getElementById("unreg_button").disabled = false;
+			document.getElementById("reg_state").value = "Incoming enabled";
+		} else {
+			//document.getElementById("unreg_button").disabled = false;
+			var reg_state = "Not ready for incoming - " + state.cause;
+			if (state.retry) {
+				reg_state = reg_state + ' - retrying';
+			}
+			document.getElementById("reg_state").value = reg_state
+		}
+	}
+	function register() {
+		token = document.getElementById("token").value;
+		if (acc) {
+			try {
+				acc.enableIncoming(token);
+			}
+			catch(err) {
+				alert("Error: " + err);
+				return;
+			}
+			document.getElementById("reg_state").value = "Enabling Incoming";
+			document.getElementById("unreg_button").disabled = false;
+			inbound_enabled = true;
+		} else {
+			document.getElementById("reg_state").value = "Client not found";
+		}
+	}
+	function unregister() {
+		if (acc) {
+			acc.disableIncoming();
+			document.getElementById("unreg_button").disabled = true;
+			document.getElementById("reg_state").value = "Disabling Incoming";
+			inbound_enabled = false;
+		} else {
+			document.getElementById("reg_state").value = "No cloud client";
+		}
+	}
+	function start_client(cloud, webRtcAccessKey, clientId, logLevel) {
+		if (acc) {
+			return;
+		}
+		if (AculabCloudClient.isSupported()) {
+			try {
+				acc = new AculabCloudClient(cloud, webRtcAccessKey, clientId, logLevel);
+				// uncomment the following line to disable relay candidates
+				//acc.iceServers = [];
+			}
+			catch(err) {
+				acc = null;
+				alert("Error: " + err)
+			}
+			if (acc) {
+				acc.maxConcurrent = slots.size;
+				acc.onIncoming = new_call;
+				acc.onIncomingState = incomingState;
+				document.getElementById("reg_button").disabled = false;
+				document.getElementById("reg_state").value = "Incoming disabled";
+				startStats();
+			} else {
+				document.getElementById("reg_state").value = "Error creating cloud client";
+			}
+		} else {
+			document.getElementById("reg_state").value = "not supported by this browser";
+		}
+	}
+	function make_client() {
+		cloudObj = document.getElementById("cloud");
+		cloud = cloudObj.value
+		if (cloud == "") {
+			cloud = document.getElementById("cloud-other").value;
+		}
+		webRtcAccessKeyObj = document.getElementById("webRtcAccessKey");
+		clientIdObj = document.getElementById("clientId");
+		logLevelObj = document.getElementById("logLevel");
+		start_client(cloud, webRtcAccessKeyObj.value, clientIdObj.value, parseInt(logLevelObj.value));
+		if (!acc) {
+			return;
+		}
+		cloudObj.disabled = true;
+		handleCloudSelect();
+		webRtcAccessKeyObj.disabled = true;
+		clientIdObj.disabled = true;
+		logLevelObj.disabled = true;
+		document.getElementById("create_button").disabled = true;
+		document.getElementById("del_button").disabled = false;
+		document.getElementById("reg_button").disabled = false;
+		for (var [s, obj] of slots.entries()) {
+			obj.player = document.getElementById(s + '-player');
+			let v = obj.player;
+			v.addEventListener("resize", ev => {
+				let w = v.videoWidth;
+				let h = v.videoHeight;
+
+				if (w && h) {
+					// TODO should the size be limited?
+					v.style.width = w + "px";
+					v.style.height = h + "px";
+				}
+			}, false);
+			obj.player.load(); // do this early in response to user action to ensure we can play later
+			obj.localplayer = document.getElementById(s + '-localplayer');
+			obj.localplayer.load(); // do this early in response to user action to ensure we can play later
+			document.getElementById(s + '-start_button').disabled = false;
+			set_codec_selector(s, 'audio');
+			set_codec_selector(s, 'video');
+		}
+	}
+	function dtor_client() {
+		// TODO do we need a client stop function to kill all calls/registration
+		// or should this only be allowed when no calls are present and incoming is disabled
+		for (var obj of slots.values()) {
+			if (obj.call) {
+				return;
+			}
+		}
+		if (inbound_enabled) {
+			unregister();
+		}
+		stopStats();
+		acc = null;
+		cloudObj = document.getElementById("cloud");
+		webRtcAccessKeyObj = document.getElementById("webRtcAccessKey");
+		clientIdObj = document.getElementById("clientId");
+		logLevelObj = document.getElementById("logLevel");
+		cloudObj.disabled = false;
+		handleCloudSelect();
+		webRtcAccessKeyObj.disabled = false;
+		clientIdObj.disabled = false;
+		logLevelObj.disabled = false;
+		document.getElementById("create_button").disabled = false;
+		document.getElementById("del_button").disabled = true;
+		document.getElementById("reg_button").disabled = true;
+		document.getElementById("unreg_button").disabled = true;
+		for (var s of slots.keys()) {
+			document.getElementById(s + '-stop_button').disabled = true;
+			document.getElementById(s + '-start_button').disabled = true;
+		}
+	}
+	function handleCloudSelect() {
+		cloudObj = document.getElementById("cloud");
+		other_obj = document.getElementById("cloud-other");
+		if (cloudObj.value != "") {
+			other_obj.value="";
+			other_obj.disabled = true;
+		} else {
+			other_obj.disabled = cloudObj.disabled;
+		}
+	}
+	function get_token() {
+		cloudObj = document.getElementById("cloud");
+		cloud = cloudObj.value
+		if (cloud == "") {
+			cloud = document.getElementById("cloud-other").value;
+		}
+		clientId = document.getElementById("clientId").value;
+		username = document.getElementById("cloud-username").value;
+		password = document.getElementById("cloud-password").value;
+		ttl = document.getElementById("ttl").value;
+		if(ttl == '') {
+			ttl = 3600;
+		}
+
+		enable_incoming = document.getElementById("enable-incoming").checked ? "true" : "false";
+		call_client = document.getElementById("call-client").value;
+
+		var data = new FormData();
+		data.append("client_id", clientId);
+		data.append("ttl", ttl);
+		data.append("enable_incoming", enable_incoming);
+		if (call_client != "") {
+			data.append("call_client", call_client);
+		}
+		fetch("https://ws-" + cloud + ".aculabcloud.net/webrtc_generate_token", {
+			method: 'POST',
+			headers: {
+				"Authorization": "Basic " + btoa(cloud + "/" + username + ":" + password)
+			},
+			body: data
+		}).then(response => {
+			if (!response.ok) {
+			  throw new Error('HTTP ' + response.status);
+			}
+			return response.json();
+		})
+		.then(j => {
+			document.getElementById("token").value = j.token;
+		  })
+		.catch(error => {
+			document.getElementById("token").value = error.toString();
+			console.error('There has been a problem with your fetch operation:', error);
+		});
+	}
+	function forceDisconnect() {
+		acc.closeConnection();
+	}
+	</script>
+</head>
+<body>
+	<style>
+	video {
+		width: 320px;
+		height: 240px;
+		border: 1px solid black;
+	}
+	/* The switch - the box around the slider */
+	.switch {
+		position: relative;
+		display: inline-block;
+		width: 40px;
+		height: 24px;
+	}
+
+	/* Hide default HTML checkbox */
+	.switch input {
+		opacity: 0;
+		width: 0;
+		height: 0;
+	}
+
+	/* The slider */
+	.slider {
+		position: absolute;
+		cursor: pointer;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-color: #ccc;
+		-webkit-transition: .4s;
+		transition: .4s;
+	}
+
+	.slider:before {
+		position: absolute;
+		content: "";
+		height: 16px;
+		width: 16px;
+		left: 4px;
+		bottom: 4px;
+		background-color: white;
+		-webkit-transition: .4s;
+		transition: .4s;
+	}
+
+	input:checked + .slider {
+		background-color: #2196F3;
+	}
+
+	input:focus + .slider {
+		box-shadow: 0 0 1px #2196F3;
+	}
+
+	input:checked + .slider:before {
+		-webkit-transform: translateX(16px);
+		-ms-transform: translateX(16px);
+		transform: translateX(16px);
+	}
+
+	/* Rounded sliders */
+	.slider.round {
+		border-radius: 24px;
+	}
+
+	.slider.round:before {
+		border-radius: 50%;
+	}
+	</style>
+    <h2>Aculab Cloud WebRTC demo</h2>
+	<table>
+		<tr>
+			<td style="padding:10px">
+				<table><tr><td>
+					Cloud:
+					<select id="cloud" onchange="handleCloudSelect()">
+						<option value="0-0-0" selected="selected">0-0-0</option>
+						<option value="0-2-0">0-2-0</option>
+						<option value="1-2-0">1-2-0</option>
+						<option value="2-2-0">2-2-0</option>
+						<option value="3-2-0">3-2-0</option>
+						<option value="4-0-0">4-0-0</option>
+						<option value="4-0-1">4-0-1</option>
+						<option value="">other</option>
+					</select>
+					<input id="cloud-other" size=10 value="" disabled=true>
+					</td></tr><tr><td>WebRTC Access Key:
+					<input id="webRtcAccessKey" size=40 value="jxctfdid7uf9lyotgzpry9r9q">
+					</td></tr><tr><td>Client ID:
+					<input id="clientId" size=40 value="client">
+					</td></tr><tr><td>Log level:
+					<select id="logLevel">
+						<option>0</option>
+						<option>1</option>
+						<option>2</option>
+						<option>3</option>
+						<option>4</option>
+						<option>5</option>
+						<option>6</option>
+						<option>7</option>
+						<option selected="selected">8</option>
+					</select>
+					</td></tr><tr><td>
+						<button id="create_button" type="button" onclick="make_client()">Create</button>
+						<button id="del_button" type="button" onclick="dtor_client()" disabled=true>Destroy</button>
+						<button id="dis_button" type="button" onclick="forceDisconnect()" >Disconnect</button>
+					</td></tr><tr><td>
+					&nbsp;
+					</td></tr><tr><td>
+						Incoming:
+						<button id="reg_button" type="button" onclick="register()" disabled=true>Enable</button>
+						<button id="unreg_button" type="button" onclick="unregister()" disabled=true>Disable</button>
+					</td></tr><tr><td>
+						<input id="reg_state" size=60 value="Not registered" disabled=true>
+					</td></tr>
+				</table>
+			</td>
+			<td style="padding:10px">
+				<table>
+					<tr><td>
+					Cloud Username: <input id="cloud-username" size=10 value="cloud.testing@aculab.com">
+					<td></tr>
+					<tr><td>
+					API Access Key: <input id="cloud-password" size=10 value="" type="password">
+					</td></tr>
+					<tr><td>
+					TTL: <input id="ttl" size=10 value="6000" min="600" max="87600" type="number">
+					</td></tr>
+					<tr><td>
+					Can enable incoming:
+					<label class="switch">
+						<input type="checkbox" id="enable-incoming" checked="checked">
+						<span class="slider round"></span>
+					</label>
+
+					</td></tr>
+					<tr><td>
+					Call client: <input id="call-client" size=10 value="*">
+					</td></tr>
+					<tr><td>
+					<button id="gen_token_button" type="button" onclick="get_token()">Generate token</button>
+					</td></tr>
+					<tr><td>
+					Client token:
+					<input id="token" size=40 value="">
+					</td></tr>
+				</table>
+			</td>
+		</tr>
+		<tr><td colspan=2>&nbsp;</td></tr>
+		<tr>
+			<td style="padding:10px; border: 1px solid blue;">
+				<table><tr><td>Caller</td><td>You</td></tr><tr><td>
+				<video id="a-player" poster="./media/video_placeholder.png"></video>
+				</td><td>
+				<video id="a-localplayer" muted poster="./media/video_placeholder.png"></video>
+				</td></tr></table>
+				<table><tr><td>
+					Call:
+					<select id="a-target-type">
+						<option selected="selected">service</option>
+						<option>client</option>
+					</select>
+					<input id="a-target" size=40 value="webrtcdemo">
+					</td></tr><tr><td>
+					Remote:
+					<input id="a-remote" size=40 value="" disabled=true>
+					</td></tr><tr><td>
+					State: <input id="a-state" size=60 value="Idle" disabled=true>
+					</td></tr><tr><td>
+					Connection: <input id="a-stats" size=60 value="" disabled=true>
+					</td></tr><tr><td>
+					Call Id: <input id="a-callid" size=60 value="" disabled=true>
+					</td></tr><tr><td>
+					<button id="a-start_button" type="button" onclick="start_call('a')" disabled=true>Start</button>
+					<button id="a-stop_button" type="button" onclick="stop_call('a')" disabled=true>Disconnect</button>
+					&nbsp;Mute: 
+					&nbsp;Mic: 
+					<label class="switch">
+						<input type="checkbox" id="a-mute-mic" onchange="mute_call('a')" disabled=true>
+						<span class="slider round"></span>
+					</label>
+					&nbsp;Cam: 
+					<label class="switch">
+						<input type="checkbox" id="a-mute-cam" onchange="mute_call('a')" disabled=true>
+						<span class="slider round"></span>
+					</label>
+					&nbsp;OutA: 
+					<label class="switch">
+						<input type="checkbox" id="a-mute-outa" onchange="mute_call('a')" disabled=true>
+						<span class="slider round"></span>
+					</label>
+					&nbsp;OutV: 
+					<label class="switch">
+						<input type="checkbox" id="a-mute-outv" onchange="mute_call('a')" disabled=true>
+						<span class="slider round"></span>
+					</label>
+				</td></tr><tr><td>
+				<div style="display: flex; flex-wrap: wrap; justify-content: space-between;">
+					<table id="a-dtmf-buttons" style="display:inline-block">
+						<tr>
+							<td><button id="dtmf1" type="button" disabled=true onclick="send_dtmf('a','1')">1</button></td>
+							<td><button id="dtmf2" type="button" disabled=true onclick="send_dtmf('a','2')">2</button></td>
+							<td><button id="dtmf3" type="button" disabled=true onclick="send_dtmf('a','3')">3</button></td>
+						</tr>
+						<tr>
+							<td><button id="dtmf4" type="button" disabled=true onclick="send_dtmf('a','4')">4</button></td>
+							<td><button id="dtmf5" type="button" disabled=true onclick="send_dtmf('a','5')">5</button></td>
+							<td><button id="dtmf6" type="button" disabled=true onclick="send_dtmf('a','6')">6</button></td>
+						</tr>
+						<tr>
+							<td><button id="dtmf7" type="button" disabled=true onclick="send_dtmf('a','7')">7</button></td>
+							<td><button id="dtmf8" type="button" disabled=true onclick="send_dtmf('a','8')">8</button></td>
+							<td><button id="dtmf9" type="button" disabled=true onclick="send_dtmf('a','9')">9</button></td>
+						</tr>
+						<tr>
+							<td><button id="dtmf10" type="button" disabled=true onclick="send_dtmf('a','*')">*</button></td>
+							<td><button id="dtmf11" type="button" disabled=true onclick="send_dtmf('a','0')">0</button></td>
+							<td><button id="dtmf12" type="button" disabled=true onclick="send_dtmf('a','#')">#</button></td>
+						</tr>
+					</table>
+					<div style="display: inline-block">
+						Local media constraints:
+						<br>
+						Audio:&nbsp;<select id="a-audio-constraints">
+							<option selected>true</option>
+							<option>false</option>
+						</select>
+						<br>
+						Video:&nbsp;<select id="a-video-constraints">
+							<option selected>true</option>
+							<option>false</option>
+							<option>qvga-exact</option>
+							<option>qvga-ideal</option>
+							<option>vga-exact</option>
+							<option>vga-ideal</option>
+							<option>xga-exact</option>
+							<option>xga-ideal</option>
+							<option>hd720-exact</option>
+							<option>hd720-ideal</option>
+							<option>hd1080-exact</option>
+							<option>hd1080-ideal</option>
+						</select>
+					</div>
+					<div style="display: inline-block">
+						Receive:
+						<br>
+						Audio:&nbsp;<select id="a-audio-receive">
+							<option selected>undefined</option>
+							<option>true</option>
+							<option>false</option>
+						</select>
+						<br>
+						Video:&nbsp;<select id="a-video-receive">
+							<option selected>undefined</option>
+							<option>true</option>
+							<option>false</option>
+						</select>
+					</div>
+					<div style="display: inline-block">
+						Bandwidth:
+						<br>
+						Audio:&nbsp;<select id="a-audio-bandwidth">
+							<option selected>not set</option>
+							<option>unlimited</option>
+							<option>256000</option>
+							<option>128000</option>
+							<option>64000</option>
+							<option>32000</option>
+							<option>16000</option>
+							<option>8000</option>
+						</select>
+						<br>
+						Video:&nbsp;<select id="a-video-bandwidth">
+							<option selected>not set</option>
+							<option>unlimited</option>
+							<option>128000</option>
+							<option>256000</option>
+							<option>512000</option>
+							<option>1024000</option>
+							<option>2048000</option>
+							<option>4096000</option>
+						</select>
+					</div>
+					<div style="display: inline-block">
+						Preferred codec:
+						<br>
+						Audio:&nbsp;<select id="a-audio-codecs">
+						</select>
+						<br>
+						Video:&nbsp;<select id="a-video-codecs">
+						</select>
+					</div>
+				</div>
+				</td></tr></table>
+			</td>
+			<td style="padding:10px; border: 1px solid blue;">
+				<table><tr><td>Caller</td><td>You</td></tr><tr><td>
+				<video id="b-player" poster="./media/video_placeholder.png"></video>
+				</td><td>
+				<video id="b-localplayer" muted poster="./media/video_placeholder.png"></video>
+				</td></tr></table>
+				<table><tr><td>
+					Call:
+					<select id="b-target-type">
+						<option>service</option>
+						<option selected="selected">client</option>
+					</select>
+					<input id="b-target" size=40 value="client">
+					</td></tr><tr><td>
+					Remote:
+					<input id="b-remote" size=40 value="" disabled=true>
+					</td></tr><tr><td>
+					State: <input id="b-state" size=60 value="Idle" disabled=true>
+					</td></tr><tr><td>
+					Connection: <input id="b-stats" size=60 value="" disabled=true>
+					</td></tr><tr><td>
+					Call Id: <input id="b-callid" size=60 value="" disabled=true>
+					</td></tr><tr><td>
+					<button id="b-start_button" type="button" onclick="start_call('b')" disabled=true>Start</button>
+					<button id="b-stop_button" type="button" onclick="stop_call('b')" disabled=true>Disconnect</button>
+					&nbsp;Mute: 
+					&nbsp;Mic: 
+					<label class="switch">
+						<input type="checkbox" id="b-mute-mic" onchange="mute_call('b')" disabled=true>
+						<span class="slider round"></span>
+					</label>
+					&nbsp;Cam: 
+					<label class="switch">
+						<input type="checkbox" id="b-mute-cam" onchange="mute_call('b')" disabled=true>
+						<span class="slider round"></span>
+					</label>
+					&nbsp;OutA: 
+					<label class="switch">
+						<input type="checkbox" id="b-mute-outa" onchange="mute_call('b')" disabled=true>
+						<span class="slider round"></span>
+					</label>
+					&nbsp;OutV: 
+					<label class="switch">
+						<input type="checkbox" id="b-mute-outv" onchange="mute_call('b')" disabled=true>
+						<span class="slider round"></span>
+					</label>
+				</td></tr><tr><td>
+					<div style="display: flex; flex-wrap: wrap; justify-content: space-between;">
+						<table id="b-dtmf-buttons" style="display:inline-block">
+						<tr>
+							<td><button id="dtmf1" type="button" disabled=true onclick="send_dtmf('b','1')">1</button></td>
+							<td><button id="dtmf2" type="button" disabled=true onclick="send_dtmf('b','2')">2</button></td>
+							<td><button id="dtmf3" type="button" disabled=true onclick="send_dtmf('b','3')">3</button></td>
+						</tr>
+						<tr>
+							<td><button id="dtmf4" type="button" disabled=true onclick="send_dtmf('b','4')">4</button></td>
+							<td><button id="dtmf5" type="button" disabled=true onclick="send_dtmf('b','5')">5</button></td>
+							<td><button id="dtmf6" type="button" disabled=true onclick="send_dtmf('b','6')">6</button></td>
+						</tr>
+						<tr>
+							<td><button id="dtmf7" type="button" disabled=true onclick="send_dtmf('b','7')">7</button></td>
+							<td><button id="dtmf8" type="button" disabled=true onclick="send_dtmf('b','8')">8</button></td>
+							<td><button id="dtmf9" type="button" disabled=true onclick="send_dtmf('b','9')">9</button></td>
+						</tr>
+						<tr>
+							<td><button id="dtmf10" type="button" disabled=true onclick="send_dtmf('b','*')">*</button></td>
+							<td><button id="dtmf11" type="button" disabled=true onclick="send_dtmf('b','0')">0</button></td>
+							<td><button id="dtmf12" type="button" disabled=true onclick="send_dtmf('b','#')">#</button></td>
+						</tr>
+					</table>
+					<div style="display: inline-block">
+						Local media constraints:
+						<br>
+						Audio:&nbsp;<select id="b-audio-constraints">
+							<option selected>true</option>
+							<option>false</option>
+						</select>
+						<br>
+						Video:&nbsp;<select id="b-video-constraints">
+							<option selected>true</option>
+							<option>false</option>
+							<option>qvga-exact</option>
+							<option>qvga-ideal</option>
+							<option>vga-exact</option>
+							<option>vga-ideal</option>
+							<option>xga-exact</option>
+							<option>xga-ideal</option>
+							<option>hd720-exact</option>
+							<option>hd720-ideal</option>
+							<option>hd1080-exact</option>
+							<option>hd1080-ideal</option>
+						</select>
+					</div>
+					<div style="display: inline-block">
+						Receive:
+						<br>
+						Audio:&nbsp;<select id="b-audio-receive">
+							<option selected>undefined</option>
+							<option>true</option>
+							<option>false</option>
+						</select>
+						<br>
+						Video:&nbsp;<select id="b-video-receive">
+							<option selected>undefined</option>
+							<option>true</option>
+							<option>false</option>
+						</select>
+					</div>
+					<div style="display: inline-block">
+						Bandwidth:
+						<br>
+						Audio:&nbsp;<select id="b-audio-bandwidth">
+							<option selected>not set</option>
+							<option>unlimited</option>
+							<option>256000</option>
+							<option>128000</option>
+							<option>64000</option>
+							<option>32000</option>
+							<option>16000</option>
+							<option>8000</option>
+						</select>
+						<br>
+						Video:&nbsp;<select id="b-video-bandwidth">
+							<option selected>not set</option>
+							<option>unlimited</option>
+							<option>128000</option>
+							<option>256000</option>
+							<option>512000</option>
+							<option>1024000</option>
+							<option>2048000</option>
+							<option>4096000</option>
+						</select>
+					</div>
+					<div style="display: inline-block">
+						Preferred codec:
+						<br>
+						Audio:&nbsp;<select id="b-audio-codecs">
+						</select>
+						<br>
+						Video:&nbsp;<select id="b-video-codecs">
+						</select>
+					</div>
+				</div>
+				</td></tr></table>
+			</td>
+		</tr>
+		<tr>
+			<td style="padding:10px; border: 1px solid blue;">
+				<table><tr><td>Caller</td><td>You</td></tr><tr><td>
+				<video id="c-player" poster="./media/video_placeholder.png"></video>
+				</td><td>
+				<video id="c-localplayer" muted poster="./media/video_placeholder.png"></video>
+				</td></tr></table>
+				<table><tr><td>
+					Call:
+					<select id="c-target-type">
+						<option>service</option>
+						<option selected="selected">client</option>
+					</select>
+					<input id="c-target" size=40 value="client">
+					</td></tr><tr><td>
+					Remote:
+					<input id="c-remote" size=40 value="" disabled=true>
+					</td></tr><tr><td>
+					State: <input id="c-state" size=60 value="Idle" disabled=true>
+					</td></tr><tr><td>
+					Connection: <input id="c-stats" size=60 value="" disabled=true>
+					</td></tr><tr><td>
+					Call Id: <input id="c-callid" size=60 value="" disabled=true>
+					</td></tr><tr><td>
+					<button id="c-start_button" type="button" onclick="start_call('c')" disabled=true>Start</button>
+					<button id="c-stop_button" type="button" onclick="stop_call('c')" disabled=true>Disconnect</button>
+					&nbsp;Mute: 
+					&nbsp;Mic: 
+					<label class="switch">
+						<input type="checkbox" id="c-mute-mic" onchange="mute_call('c')" disabled=true>
+						<span class="slider round"></span>
+					</label>
+					&nbsp;Cam: 
+					<label class="switch">
+						<input type="checkbox" id="c-mute-cam" onchange="mute_call('c')" disabled=true>
+						<span class="slider round"></span>
+					</label>
+					&nbsp;OutA: 
+					<label class="switch">
+						<input type="checkbox" id="c-mute-outa" onchange="mute_call('c')" disabled=true>
+						<span class="slider round"></span>
+					</label>
+					&nbsp;OutV: 
+					<label class="switch">
+						<input type="checkbox" id="c-mute-outv" onchange="mute_call('c')" disabled=true>
+						<span class="slider round"></span>
+					</label>
+				</td></tr><tr><td>
+					<div style="display: flex; flex-wrap: wrap; justify-content: space-between;">
+						<table id="c-dtmf-buttons" style="display:inline-block">
+						<tr>
+							<td><button id="dtmf1" type="button" disabled=true onclick="send_dtmf('c','1')">1</button></td>
+							<td><button id="dtmf2" type="button" disabled=true onclick="send_dtmf('c','2')">2</button></td>
+							<td><button id="dtmf3" type="button" disabled=true onclick="send_dtmf('c','3')">3</button></td>
+						</tr>
+						<tr>
+							<td><button id="dtmf4" type="button" disabled=true onclick="send_dtmf('c','4')">4</button></td>
+							<td><button id="dtmf5" type="button" disabled=true onclick="send_dtmf('c','5')">5</button></td>
+							<td><button id="dtmf6" type="button" disabled=true onclick="send_dtmf('c','6')">6</button></td>
+						</tr>
+						<tr>
+							<td><button id="dtmf7" type="button" disabled=true onclick="send_dtmf('c','7')">7</button></td>
+							<td><button id="dtmf8" type="button" disabled=true onclick="send_dtmf('c','8')">8</button></td>
+							<td><button id="dtmf9" type="button" disabled=true onclick="send_dtmf('c','9')">9</button></td>
+						</tr>
+						<tr>
+							<td><button id="dtmf10" type="button" disabled=true onclick="send_dtmf('c','*')">*</button></td>
+							<td><button id="dtmf11" type="button" disabled=true onclick="send_dtmf('c','0')">0</button></td>
+							<td><button id="dtmf12" type="button" disabled=true onclick="send_dtmf('c','#')">#</button></td>
+						</tr>
+					</table>
+					<div style="display: inline-block">
+						Local media constraints:
+						<br>
+						Audio:&nbsp;<select id="c-audio-constraints">
+							<option selected>true</option>
+							<option>false</option>
+						</select>
+						<br>
+						Video:&nbsp;<select id="c-video-constraints">
+							<option selected>true</option>
+							<option>false</option>
+							<option>qvga-exact</option>
+							<option>qvga-ideal</option>
+							<option>vga-exact</option>
+							<option>vga-ideal</option>
+							<option>xga-exact</option>
+							<option>xga-ideal</option>
+							<option>hd720-exact</option>
+							<option>hd720-ideal</option>
+							<option>hd1080-exact</option>
+							<option>hd1080-ideal</option>
+						</select>
+					</div>
+					<div style="display: inline-block">
+						Receive:
+						<br>
+						Audio:&nbsp;<select id="c-audio-receive">
+							<option selected>undefined</option>
+							<option>true</option>
+							<option>false</option>
+						</select>
+						<br>
+						Video:&nbsp;<select id="c-video-receive">
+							<option selected>undefined</option>
+							<option>true</option>
+							<option>false</option>
+						</select>
+					</div>
+					<div style="display: inline-block">
+						Bandwidth:
+						<br>
+						Audio:&nbsp;<select id="c-audio-bandwidth">
+							<option selected>not set</option>
+							<option>unlimited</option>
+							<option>256000</option>
+							<option>128000</option>
+							<option>64000</option>
+							<option>32000</option>
+							<option>16000</option>
+							<option>8000</option>
+						</select>
+						<br>
+						Video:&nbsp;<select id="c-video-bandwidth">
+							<option selected>not set</option>
+							<option>unlimited</option>
+							<option>128000</option>
+							<option>256000</option>
+							<option>512000</option>
+							<option>1024000</option>
+							<option>2048000</option>
+							<option>4096000</option>
+						</select>
+					</div>
+					<div style="display: inline-block">
+						Preferred codec:
+						<br>
+						Audio:&nbsp;<select id="c-audio-codecs">
+						</select>
+						<br>
+						Video:&nbsp;<select id="c-video-codecs">
+						</select>
+					</div>
+				</div>
+				</td></tr></table>
+			</td>
+			<td style="padding:10px; border: 1px solid blue;">
+				<table><tr><td>Caller</td><td>You</td></tr><tr><td>
+				<video id="d-player" poster="./media/video_placeholder.png"></video>
+				</td><td>
+				<video id="d-localplayer" muted poster="./media/video_placeholder.png"></video>
+				</td></tr></table>
+				<table><tr><td>
+					Call:
+					<select id="d-target-type">
+						<option>service</option>
+						<option selected="selected">client</option>
+					</select>
+					<input id="d-target" size=40 value="client">
+					</td></tr><tr><td>
+					Remote:
+					<input id="d-remote" size=40 value="" disabled=true>
+					</td></tr><tr><td>
+					State: <input id="d-state" size=60 value="Idle" disabled=true>
+					</td></tr><tr><td>
+					Connection: <input id="d-stats" size=60 value="" disabled=true>
+					</td></tr><tr><td>
+					Call Id: <input id="d-callid" size=60 value="" disabled=true>
+					</td></tr><tr><td>
+					<button id="d-start_button" type="button" onclick="start_call('d')" disabled=true>Start</button>
+					<button id="d-stop_button" type="button" onclick="stop_call('d')" disabled=true>Disconnect</button>
+					&nbsp;Mute: 
+					&nbsp;Mic: 
+					<label class="switch">
+						<input type="checkbox" id="d-mute-mic" onchange="mute_call('d')" disabled=true>
+						<span class="slider round"></span>
+					</label>
+					&nbsp;Cam: 
+					<label class="switch">
+						<input type="checkbox" id="d-mute-cam" onchange="mute_call('d')" disabled=true>
+						<span class="slider round"></span>
+					</label>
+					&nbsp;OutA: 
+					<label class="switch">
+						<input type="checkbox" id="d-mute-outa" onchange="mute_call('d')" disabled=true>
+						<span class="slider round"></span>
+					</label>
+					&nbsp;OutV: 
+					<label class="switch">
+						<input type="checkbox" id="d-mute-outv" onchange="mute_call('d')" disabled=true>
+						<span class="slider round"></span>
+					</label>
+				</td></tr><tr><td>
+					<div style="display: flex; flex-wrap: wrap; justify-content: space-between;">
+						<table id="d-dtmf-buttons" style="display:inline-block">
+						<tr>
+							<td><button id="dtmf1" type="button" disabled=true onclick="send_dtmf('d','1')">1</button></td>
+							<td><button id="dtmf2" type="button" disabled=true onclick="send_dtmf('d','2')">2</button></td>
+							<td><button id="dtmf3" type="button" disabled=true onclick="send_dtmf('d','3')">3</button></td>
+						</tr>
+						<tr>
+							<td><button id="dtmf4" type="button" disabled=true onclick="send_dtmf('d','4')">4</button></td>
+							<td><button id="dtmf5" type="button" disabled=true onclick="send_dtmf('d','5')">5</button></td>
+							<td><button id="dtmf6" type="button" disabled=true onclick="send_dtmf('d','6')">6</button></td>
+						</tr>
+						<tr>
+							<td><button id="dtmf7" type="button" disabled=true onclick="send_dtmf('d','7')">7</button></td>
+							<td><button id="dtmf8" type="button" disabled=true onclick="send_dtmf('d','8')">8</button></td>
+							<td><button id="dtmf9" type="button" disabled=true onclick="send_dtmf('d','9')">9</button></td>
+						</tr>
+						<tr>
+							<td><button id="dtmf10" type="button" disabled=true onclick="send_dtmf('d','*')">*</button></td>
+							<td><button id="dtmf11" type="button" disabled=true onclick="send_dtmf('d','0')">0</button></td>
+							<td><button id="dtmf12" type="button" disabled=true onclick="send_dtmf('d','#')">#</button></td>
+						</tr>
+					</table>
+					<div style="display: inline-block">
+						Local media constraints:
+						<br>
+						Audio:&nbsp;<select id="d-audio-constraints">
+							<option selected>true</option>
+							<option>false</option>
+						</select>
+						<br>
+						Video:&nbsp;<select id="d-video-constraints">
+							<option selected>true</option>
+							<option>false</option>
+							<option>qvga-exact</option>
+							<option>qvga-ideal</option>
+							<option>vga-exact</option>
+							<option>vga-ideal</option>
+							<option>xga-exact</option>
+							<option>xga-ideal</option>
+							<option>hd720-exact</option>
+							<option>hd720-ideal</option>
+							<option>hd1080-exact</option>
+							<option>hd1080-ideal</option>
+						</select>
+					</div>
+					<div style="display: inline-block">
+						Receive:
+						<br>
+						Audio:&nbsp;<select id="d-audio-receive">
+							<option selected>undefined</option>
+							<option>true</option>
+							<option>false</option>
+						</select>
+						<br>
+						Video:&nbsp;<select id="d-video-receive">
+							<option selected>undefined</option>
+							<option>true</option>
+							<option>false</option>
+						</select>
+					</div>
+					<div style="display: inline-block">
+						Bandwidth:
+						<br>
+						Audio:&nbsp;<select id="d-audio-bandwidth">
+							<option selected>not set</option>
+							<option>unlimited</option>
+							<option>256000</option>
+							<option>128000</option>
+							<option>64000</option>
+							<option>32000</option>
+							<option>16000</option>
+							<option>8000</option>
+						</select>
+						<br>
+						Video:&nbsp;<select id="d-video-bandwidth">
+							<option selected>not set</option>
+							<option>unlimited</option>
+							<option>128000</option>
+							<option>256000</option>
+							<option>512000</option>
+							<option>1024000</option>
+							<option>2048000</option>
+							<option>4096000</option>
+						</select>
+					</div>
+					<div style="display: inline-block">
+						Preferred codec:
+						<br>
+						Audio:&nbsp;<select id="d-audio-codecs">
+						</select>
+						<br>
+						Video:&nbsp;<select id="d-video-codecs">
+						</select>
+					</div>
+				</div>
+				</td></tr></table>
+			</td>
+		</tr>
+	</table>
+</body>
+</html>

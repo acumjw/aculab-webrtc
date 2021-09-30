@@ -1,0 +1,27 @@
+{
+  "name": "aculab-cloud-webrtc-client",
+  "version": "3.0.2",
+  "main": "src/index.js",
+  "type": "module",
+  "dependencies": {
+    "sip.js": "^0.19.0",
+    "webrtc-adapter": "^7.7.0"
+  },
+  "devDependencies": {
+    "eslint": "^7.20.0",
+    "eslint-plugin-react": "^7.22.0",
+    "webpack": "^4.44.2",
+    "webpack-cli": "^3.3.12"
+  },
+  "scripts": {
+    "build-package": "mkdir -p dist; cd dist; npm pack ..",
+    "build-reg-bundle": "webpack --progress --config build/webpack.config.cjs --env.buildType=reg",
+    "build-min-bundle": "webpack --progress --config build/webpack.config.cjs --env.buildType=min",
+    "build-bundles": "npm run build-reg-bundle && npm run build-min-bundle",
+    "copy-dist-file": "cp dist/AculabCloudCaller.js dist/AculabCloudCaller-$npm_package_version.js",
+    "copy-dist-file-min": "cp dist/AculabCloudCaller.min.js dist/AculabCloudCaller-$npm_package_version.min.js",
+    "copy-dist-files": "npm run copy-dist-file && npm run copy-dist-file-min",
+    "build-web-tgz": "tar -czf dist/webrtc-client-web-package-$npm_package_version.tgz --group 0 --owner 0 --numeric-owner --transform=s,^,$npm_package_version/, dist/AculabCloudCaller.js test/* interface.html",
+    "build": "npm run build-package && npm run build-bundles && npm rum copy-dist-files && npm run build-web-tgz"
+  }
+}
