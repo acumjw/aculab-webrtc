@@ -1,5 +1,5 @@
 {
-  "name": "aculab-cloud-webrtc-client",
+  "name": "aculab-webrtc",
   "version": "3.0.2",
   "main": "src/index.js",
   "type": "module",
