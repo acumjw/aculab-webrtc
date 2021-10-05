@@ -43,7 +43,6 @@ export class AculabCloudCall {
 	 */
 	set session(sess) {
 		this._session = sess;
-		this._callId = sess.request.callId;
 		this._session.delegate = {
 			onBye: (bye) => {
 				// extract reason from BYE message
@@ -74,7 +73,6 @@ export class AculabCloudCall {
 			}
 		})
 	}
-	
 	/**
 	 * @param {String} indtmf
 	 */
@@ -95,6 +93,34 @@ export class AculabCloudCall {
 				throw 'DTMF send error';
 		}
 	}
+    swap_cam()
+    {
+        if (this._session && this._session.sessionDescriptionHandler && this._session.sessionDescriptionHandler.peerConnection)
+        {
+            var pc = this._session.sessionDescriptionHandler.peerConnection;
+            if (pc.getSenders)
+            {
+                pc.getSenders().forEach(function (sender) {
+                    if (sender.track) {
+                       if (sender.track.kind == "video") {
+                            sender.track.prototype._switchCamera();
+                        }
+                    }
+                });
+            }
+            else
+            {
+                pc.getLocalStreams().forEach(function (stream) {
+                    //stream.getVideoTracks().forEach(function (track) {
+                     //   track.prototype._switchCamera();
+                        
+                   // });
+                    
+                });
+                
+            }
+        }
+    }
 	mute(mic, output_audio, camera, output_video) {
 		this.client.console_log('AculabCloudCall mute(mic=' + mic + ', output_audio=' + output_audio + ', camera=' + camera + ', output_video=' + output_video +')');
 		if (camera === undefined) {
@@ -105,27 +131,47 @@ export class AculabCloudCall {
 		}
 		// for output, mute/unmute this._remote_stream's track
 		if (this._remote_stream) {
-			this._remote_stream.getTracks().forEach((t) => {
-				if (t.kind == "audio") {
-					t.enabled = !output_audio;
-				} else if (t.kind == "video") {
-					t.enabled = !output_video;
-				}
-			});
-		}
+            if (this._remote_stream.getTracks)
+            {
+                  this._remote_stream.getTracks().forEach((t) => {
+                    if (t.kind == "audio") {
+                        t.enabled = !output_audio;
+                    } else if (t.kind == "video") {
+                        t.enabled = !output_video;
+                    }
+                });
+            }
+        }
 		// for mic, need to get track from session description handler
-		if (this._session && this._session.sessionDescriptionHandler && this._session.sessionDescriptionHandler.peerConnection) {
+		if (this._session && this._session.sessionDescriptionHandler && this._session.sessionDescriptionHandler.peerConnection){
 			var pc = this._session.sessionDescriptionHandler.peerConnection;
-			pc.getSenders().forEach(function (sender) {
-				if (sender.track) {
-					if (sender.track.kind == "audio") {
-						sender.track.enabled = !mic;
-					} else if (sender.track.kind == "video") {
-						sender.track.enabled = !camera;
-					}
-				}
-			});
-		}
+			if (pc.getSenders)
+            {
+                pc.getSenders().forEach(function (sender) {
+                if (sender.track) {
+                    if (sender.track.kind == "audio") {
+                        sender.track.enabled = !mic;
+                    } else if (sender.track.kind == "video") {
+                        sender.track.enabled = !camera;
+                    }
+                }
+                });
+            }
+            else
+            {
+                pc.getLocalStreams().forEach(function (stream) {
+                    stream.getAudioTracks().forEach(function (track) {
+                        track.enabled = !mic;
+                    });
+                    stream.getVideoTracks().forEach(function (track) {
+                        
+                        track.enabled = !camera;
+                    });
+                    
+                });
+                                             
+            }
+        }
 	}
 	_onclientready() {
 		// nothing to do in base class
@@ -159,8 +205,10 @@ export class AculabCloudCall {
 		}
 	}
 	_check_notify_connected() {
+        
 		if (this._connected && !this._notified_connected && this._ice_connected) {
 			this._notified_connected = true;
+            
 			if (this.onConnected) {
 				this.client.console_log('AculabCloudCall calling onConnected' + ` ice: ${this._ice_connected}`);
 				try {
@@ -184,11 +232,12 @@ export class AculabCloudCall {
 	}
 	_add_media_handlers(sdh) {
 		this.client.console_log('AculabCloudCall adding media event handlers');
-
+        
 		sdh.onUserMedia = (stream) => {
 			if (this.onConnecting) {
 				this.client.console_log('AculabCloudCall calling onConnecting');
 				try {
+                    
 					this.onConnecting({'call': this, "stream": stream});
 				}
 				catch(e) {
@@ -196,6 +245,7 @@ export class AculabCloudCall {
 				}
 			}
 		}
+        
 		sdh.onUserMediaFailed = (err) => {
 			this.client.console_error('AculabCloudCall getUserMedia failed - ' + err);
 			// store error, so we can report correct reason in onDisconnect callback
@@ -204,19 +254,27 @@ export class AculabCloudCall {
 			}
 		}
 
-		sdh.peerConnectionDelegate = {
-			ontrack: (ev) => {
-				if (ev.track) {
+        sdh.peerConnectionDelegate = {
+            ontrack: (ev) => {
+                if (ev.track) {
+                    this._remote_stream = sdh.remoteMediaStream;
+                    this._check_notify_media();
+                }
+            },
+			onaddstream: (ev) => {
+				
 					this._remote_stream = sdh.remoteMediaStream;
 					this._check_notify_media();
-				}
+				
 			},
 			oniceconnectionstatechange: () => {
+                this._remote_stream = sdh.remoteMediaStream;
 				var icestate = sdh.peerConnection.iceConnectionState;
 				if (icestate == 'connected' || icestate == 'completed') {
+                    
 					this._set_ice_state(true);
 				} else {
-					this._set_ice_state(false);
+                    this._set_ice_state(false);
 				}
 			}
 		}

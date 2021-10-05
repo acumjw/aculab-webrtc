@@ -1,5 +1,7 @@
 "use strict";
-import adapter from "webrtc-adapter";
+import {registerGlobals} from 'react-native-webrtc';
+registerGlobals();
+//import adapter from "webrtc-adapter";
 
 import {
 	RegistererState,
@@ -17,12 +19,13 @@ import { TokenRegisterer } from "./token-registerer.js";
 
 export class AculabCloudClient {
 	constructor(cloudId, webRtcAccessKey, clientId, logLevel) {
+        registerGlobals();
 		this.loglevel = logLevel
 		if (this.loglevel < 0) {
 			this.loglevel = 0;
 		}
 		this.console_log("AculabCloudClient cloudId = '" + cloudId + "', webRtcAccessKey = '" + webRtcAccessKey + "', clientId = '" + clientId + "'");
-		this.console_log("AculabCloudClient using adapter for '" + adapter.browserDetails.browser + "'");
+		//this.console_log("AculabCloudClient using adapter for '" + adapter.browserDetails.browser + "'");
 		if (typeof cloudId !== 'string') {
 			throw 'cloudId is not a string';
 		}
