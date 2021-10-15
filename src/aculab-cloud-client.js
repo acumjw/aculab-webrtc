@@ -1,8 +1,9 @@
 "use strict";
-import {registerGlobals} from 'react-native-webrtc';
-registerGlobals();
-//import adapter from "webrtc-adapter";
-
+if (typeof document == 'undefined') {
+    // I'm on the react-native!
+    import {registerGlobals} from 'react-native-webrtc';
+    registerGlobals();
+}
 import {
 	RegistererState,
 	SessionState,
@@ -19,7 +20,10 @@ import { TokenRegisterer } from "./token-registerer.js";
 
 export class AculabCloudClient {
 	constructor(cloudId, webRtcAccessKey, clientId, logLevel) {
-        registerGlobals();
+        if (typeof document == 'undefined') {
+            // I'm on the react-native!
+            registerGlobals();
+        }
 		this.loglevel = logLevel
 		if (this.loglevel < 0) {
 			this.loglevel = 0;

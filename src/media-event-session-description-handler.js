@@ -1,25 +1,28 @@
-//import { Web } from "sip.js";
 import {
     Web,
     EmitterImpl,
     SessionDescriptionHandlerError,
     Modifiers,
 } from 'sip.js';
-import { NativeModules, NativeEventEmitter } from 'react-native';
-import {
-    RTCPeerConnection,
-    RTCIceCandidate,
-    MediaStream,
-    MediaStreamTrack,
-    mediaDevices,
-    permissions,
-    getUserMedia,
-    registerGlobals,
-    RTCView,
-} from "react-native-webrtc"
-//import adapter from 'webrtc-adapter';
 
-const {WebRTCModule} = NativeModules;
+if (typeof document == 'undefined') {
+    // I'm on the react-native!
+
+    import { NativeModules, NativeEventEmitter } from 'react-native';
+    import {
+        RTCPeerConnection,
+        RTCIceCandidate,
+        MediaStream,
+        MediaStreamTrack,
+        mediaDevices,
+        permissions,
+        getUserMedia,
+        registerGlobals,
+        RTCView,
+    } from "react-native-webrtc"
+    //import adapter from 'webrtc-adapter';
+    const {WebRTCModule} = NativeModules;
+}
 
 function defer() {
     const deferred = {};
