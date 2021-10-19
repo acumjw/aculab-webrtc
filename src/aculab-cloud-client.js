@@ -1,8 +1,10 @@
 "use strict";
+var rnw = {}
 if (typeof document == 'undefined') {
     // I'm on the react-native!
-    import {registerGlobals} from 'react-native-webrtc';
-    registerGlobals();
+    rnw = require('react-native-webrtc')
+    
+    rnw.registerGlobals();
 }
 import {
 	RegistererState,
@@ -22,7 +24,7 @@ export class AculabCloudClient {
 	constructor(cloudId, webRtcAccessKey, clientId, logLevel) {
         if (typeof document == 'undefined') {
             // I'm on the react-native!
-            registerGlobals();
+            rnw.registerGlobals();
         }
 		this.loglevel = logLevel
 		if (this.loglevel < 0) {

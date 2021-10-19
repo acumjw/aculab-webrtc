@@ -5,23 +5,30 @@ import {
     Modifiers,
 } from 'sip.js';
 
+
+
+var NativeModules = "";
+var RTCPeerConnection = "";
+var RTCIceCandidate = "";
+var MediaStream = "";
+var mediaDevices = "";
+var registerGlobals = "";
+var RTCView = "";
+var {WebRTCModule} = {};
+
 if (typeof document == 'undefined') {
     // I'm on the react-native!
-
-    import { NativeModules, NativeEventEmitter } from 'react-native';
-    import {
-        RTCPeerConnection,
-        RTCIceCandidate,
-        MediaStream,
-        MediaStreamTrack,
-        mediaDevices,
-        permissions,
-        getUserMedia,
-        registerGlobals,
-        RTCView,
-    } from "react-native-webrtc"
-    //import adapter from 'webrtc-adapter';
-    const {WebRTCModule} = NativeModules;
+    NativeModules = require('react-native').NativeModules
+    rnw = require('react-native-webrtc')
+    RTCPeerConnection = rnw.RTCPeerConnection
+    RTCIceCandidate = rnw.RTCIceCandidate
+    MediaStream = rnw.MediaStream
+    mediaDevices = rnw.mediaDevices
+    registerGlobals = rnw.registerGlobals
+    RTCView = rnw.RTCView
+    
+    
+    WebRTCModule = NativeModules;
 }
 
 function defer() {
@@ -33,7 +40,7 @@ function defer() {
     return deferred;
 }
 
-registerGlobals();
+//registerGlobals();
 
 export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionHandler {
     constructor(logger, mediaStreamFactory, sessionDescriptionHandlerConfiguration) {
