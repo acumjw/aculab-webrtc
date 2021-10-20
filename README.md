@@ -11,12 +11,13 @@ Integrating WebRTC
 Implementations of WebRTC are still evolving and each browser has different levels of support for codecs and other WebRTC features. Before deployment, please be sure to try out our WebRTC interface in the environment where you expect to use it.
 
 Include the JavaScript library by adding the aculab-webrtc npm package
+
 '''
 yarn add aculab-webrtc
 '''
 
 
-###Video calls between WebRTC Client instances
+### Video calls between WebRTC Client instances
 
 The default behaviour of the interface is to set up audio only calls. When the call is between two WebRTC Client instances, you can enable video in both or just one direction.
 
@@ -30,6 +31,7 @@ To make a call with video to a WebRTC Client instance you need to pass a suitabl
     };
     call = acc.callClient("other_client_id", token, options);
 '''
+
 For incoming calls from WebRTC Client instances, you can determine the caller's media settings for the call from the object passed to the onIncoming callback. For a call with video in both directions, the offeringVideo and canReceiveVideo properties of that object will be true. To answer the call with video, you need to pass a suitably configured AculabCloudCallOptions object to AculabCloudIncomingCall.answer(). For example:
 '''
     var options = {
@@ -40,6 +42,7 @@ For incoming calls from WebRTC Client instances, you can determine the caller's 
     };
     call.answer(options);
 '''
+
 Note that calls will fail if the constraints require a local video stream but the user doesn't have a webcam, or refuses access to it. To receive video but not send it, you can use:
 '''
     var options = {
@@ -49,9 +52,9 @@ Note that calls will fail if the constraints require a local video stream but th
         },
         receiveVideo: true
     };
-    '''
+'''
 
-##Creating a WebRTC Client Instance
+## Creating a WebRTC Client Instance
 
 To create a WebRTC Client instance, you will need the following information:
 
@@ -67,9 +70,10 @@ All WebRTC Client instances use the AculabCloudClient class. Create a new instan
     var logLevel = 2;
     acc = new AculabCloudClient(cloudId, webRtcAccessKey, clientId, logLevel);
 '''
+
 where logLevel is between 0 and 6 inclusive. 0 disables logging.
 
-##Enabling Incoming Calls on a WebRTC Client Instance
+## Enabling Incoming Calls on a WebRTC Client Instance
 
 If you will be accepting incoming WebRTC calls, then you need to set up the onIncoming and onIncomingState callbacks.
 '''
@@ -89,7 +93,7 @@ A WebRTC Client instance needs a token to be able to receive incoming WebRTC cal
 '''
 The onIncomingState callback is used to notify you if incoming WebRTC calls are enabled or disabled.
 
-##Calling a WebRTC Client instance from WebRTC
+## Calling a WebRTC Client instance from WebRTC
 
 WebRTC Client instances can call other WebRTC Client instances. This is achieved by calling AculabCloudClient.callClient() then setting up the AculabCloudOutgoingCall callbacks to handle the call control events.
 
@@ -109,7 +113,7 @@ See Call Control Callbacks for information on these callbacks.
 
 Such calls are charged for. See Call costs for information on finding these costs.
 
-##Calling an Aculab Cloud Service from WebRTC
+## Calling an Aculab Cloud Service from WebRTC
 
 WebRTC Client instances can call Aculab Cloud inbound services. This is achieved by calling AculabCloudClient.callService() then setting up the AculabCloudOutgoingCall callbacks to handle the call control events.
 '''
@@ -122,13 +126,13 @@ WebRTC Client instances can call Aculab Cloud inbound services. This is achieved
 '''
 See Call Control Callbacks for information on these callbacks.
 
-##Calling a WebRTC Client Instance from Aculab Cloud
+## Calling a WebRTC Client Instance from Aculab Cloud
 
 UAS and REST applications can call a WebRTC Client instance by setting the call destination to webrtc:<clientId>.
 
 The Caller ID specified is passed to the onIncoming callback.
 
-##Calling a WebRTC Client Instance from the REST API Version 2.0
+## Calling a WebRTC Client Instance from the REST API Version 2.0
 
 An example of using the Connect action to call a WebRTC Client instance, written in Python.
 '''
@@ -141,16 +145,16 @@ An example of using the Connect action to call a WebRTC Client instance, written
                                                 final_page=WebPage(url='secondary_final'),
                                                 error_page=WebPage(url='error_page')))
 '''
-##Calling a WebRTC Client Instance from the UAS API
+## Calling a WebRTC Client Instance from the UAS API
 
 A Python example of using the UASCallChannel object to call a WebRTC Client instance.
 
     if channel.start_call('webrtc:{0}'.format(clientId), call_from='441234567890') is True:
         # we have started an outbound call
         pass
-##Accepting an Incoming WebRTC Call
+## Accepting an Incoming WebRTC Call
 
-###onIncomingState
+### onIncomingState
 
 onIncomingState is used to inform you whether incoming WebRTC calls are enabled or disabled.
 '''
@@ -164,7 +168,7 @@ onIncomingState is used to inform you whether incoming WebRTC calls are enabled 
     }
 '''
 
-###onIncoming
+### onIncoming
 
 If WebRTC Client has been configured to accept incoming calls, then the onIncoming callback is used to accept any incoming call.
 
@@ -207,15 +211,15 @@ The onIncoming callback should set up the AculabCloudIncomingCall callbacks, not
 
 See Call Control Callbacks for information on these callbacks.
 
-###Answering the call
+### Answering the call
 
 When the user accepts the incoming call the call's answer() function needs to be called. For calls from WebRTC Client instances, an AculabCloudCallOptions object can be passed to configure the media that is sent.
 
-###Call Control Callbacks
+### Call Control Callbacks
 
 The various call control callbacks have been set up in the code snippets above. Example code showing how these callbacks are implemented is shown in this section.
 
-###onDisconnect
+### onDisconnect
 
 This callback is called when the call has been disconnected. The player element should be reset, and any resources cleaned up.
 '''
@@ -249,7 +253,7 @@ This callback is called when the call has been disconnected. The player element 
     }
 '''
 
-###onRinging
+### onRinging
 
 If you have not got an media stream from the remote end, then you can generate a ringtone locally.
 '''
@@ -281,7 +285,7 @@ If you have not got an media stream from the remote end, then you can generate a
     }
 '''
 
-###onMedia
+### onMedia
 
 The onMedia callback is used to give you the remote media stream which you can connect to your HTMLMediaElement element.
 '''
@@ -302,7 +306,7 @@ The onMedia callback is used to give you the remote media stream which you can c
     }
 '''
 
-###onConnecting
+### onConnecting
 
 onConnecting is called when the browser has the local media stream and is preparing the sockets needed to transport the call media. There is nothing that specifically needs doing in this callback, but it can be used to connect the local media stream to show the camera view.
 '''
@@ -312,7 +316,7 @@ onConnecting is called when the browser has the local media stream and is prepar
     }
 '''
 
-###onConnected
+### onConnected
 
 When the call has been answered the onConnected callback will be called. You can use this callback to notify the user about call progress.
 '''
@@ -323,7 +327,7 @@ When the call has been answered the onConnected callback will be called. You can
     }
 '''
 
-###Disconnecting a Call
+### Disconnecting a Call
 
 Disconnecting a connected call is as simple as calling disconnect() on the call object. Inbound calls that have not connected should be rejected with a valid SIP cause, for example 486 busy here, instead.
 '''
@@ -340,7 +344,7 @@ Disconnecting a connected call is as simple as calling disconnect() on the call 
 '''
 
 
-Troubleshooting
+### Troubleshooting
 
 A number of common issues can cause problems with media in a WebRTC call.
 
