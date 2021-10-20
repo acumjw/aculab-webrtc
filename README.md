@@ -1,4 +1,4 @@
-#How to Aculab Write WebRTC Apps
+# How to Aculab Write WebRTC Apps
 
 This guide shows the basic steps how to write WebRTC applications for Aculab Cloud. Refer to the API guide for detailed documentation on the APIs used.
 
@@ -6,7 +6,7 @@ WebRTC Client instances can call, and be called from, Aculab Cloud services and 
 
 Each WebRTC Client instance can be configured to handle multiple concurrent calls, and a web page can multiple WebRTC Client instances. The maximum number of concurrent calls is browser dependent. The code shown in this guide handles only one WebRTC Client instance with one call.
 
-Integrating WebRTC
+## Integrating WebRTC
 
 Implementations of WebRTC are still evolving and each browser has different levels of support for codecs and other WebRTC features. Before deployment, please be sure to try out our WebRTC interface in the environment where you expect to use it.
 
