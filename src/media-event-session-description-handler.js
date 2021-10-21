@@ -12,9 +12,7 @@ var RTCPeerConnection = "";
 var RTCIceCandidate = "";
 var MediaStream = "";
 var mediaDevices = "";
-var registerGlobals = "";
 var RTCView = "";
-var {WebRTCModule} = {};
 
 if (typeof document == 'undefined') {
     // I'm on the react-native!
@@ -24,12 +22,11 @@ if (typeof document == 'undefined') {
     RTCIceCandidate = rnw.RTCIceCandidate
     MediaStream = rnw.MediaStream
     mediaDevices = rnw.mediaDevices
-    registerGlobals = rnw.registerGlobals
     RTCView = rnw.RTCView
     
-    
-    WebRTCModule = NativeModules;
 }
+var {WebRTCModule} = NativeModules;
+
 
 function defer() {
     const deferred = {};
@@ -68,6 +65,9 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         
     }
     setLocalMediaStream(stream) {
+        if (this._peerConnection.getSenders) {
+            return (super.setLocalMediaStream());
+        }
         this.logger.debug("SessionDescriptionHandler.setLocalMediaStream");
         if (!this._peerConnection) {
             throw new Error("Peer connection undefined.");
@@ -115,9 +115,9 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
             throw 'Invalid DTMF string';
         }
         
-        if (this.peerConnection) {
+        if (this._peerConnection) {
             try {
-                var pc = this.peerConnection;
+                var pc = this._peerConnection;
                 WebRTCModule.peerConnectionSendDTMF(indtmf, 500, 400, pc._peerConnectionId);
             }
             catch(e) {
@@ -180,7 +180,8 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
     }
     async getLocalMediaStream(options) {
         try {
-            this._localMediaStream = await super.getLocalMediaStream(options);
+            //this._localMediaStream =
+            await super.getLocalMediaStream(options);
             if (this.onUserMedia && this.notified_stream != this._localMediaStream) {
                 this.notified_stream = this._localMediaStream;
                 this.onUserMedia(this._localMediaStream);
@@ -273,14 +274,8 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         const defaults = {
         constraints: {
         audio: true,
-            //video: false
-        video: {
-            //width: 640,
-            //height: 480,
-        frameRate: 30,
-        facingMode: ("front"),
-            //deviceId: ""  //videoSourceId
-        }
+        video: false
+        
         },
         receiveAudio: undefined,
         receiveVideo: undefined,
@@ -370,7 +365,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
     // ICE gathering state handling
     isIceGatheringComplete() {
         return (
-                this.peerConnection.iceGatheringState === 'complete' ||
+                this._peerConnection.iceGatheringState === 'complete' ||
                 this.iceGatheringTimeout
                 );
     }

@@ -1,5 +1,5 @@
 "use strict";
-var rnw = {}
+var rnw = {};
 if (typeof document == 'undefined') {
     // I'm on the react-native!
     rnw = require('react-native-webrtc')
