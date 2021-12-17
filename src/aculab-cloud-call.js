@@ -204,9 +204,6 @@ export class AculabCloudCall {
             else
             {
                 
-                //****CHRIS
-                // NEED TO CHANGE THIS FOR TO USE THIS OR CHANGE HOW I ITERATET STREAMS
-                //GOOGLE JAVASCRIPT FOR LOOPS FOR DUMMIES
                 all_streams = pc.getLocalStreams()
                 var stream = 0;
                 for (stream in all_streams)
