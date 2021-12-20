@@ -31,6 +31,14 @@ To make a call with video to a WebRTC Client instance you need to pass a suitabl
     };
     call = acc.callClient("other_client_id", token, options);
 ```
+ In order to deal with the fact that react-native-webrtc implemented muted video by stopping the stream instead of sending a stream of 0's in order to shut off camera light when on mute.  See https://github.com/react-native-webrtc/react-native-webrtc/issues/643 Work around is to have callbacks for local video mute/unmute to place a picture in the local view of the call window. Also remote video mute which detects when nothing is on the rtp line (not receivng RTP because of above.  There are 2 callbacks for the remote side to do something when it detects the other side has muted. Set these callbacks to create teh expected behavior in user space.
+ 
+''' 
+        aculab_cloud_call.onLocalVideoMuteCB 
+        aculab_cloud_call.onLocalVideoUnMuteCB 
+        aculab_cloud_call.onRemoteVideoMuteCB 
+        aculab_cloud_call.onRemoteVideoUnMuteCB 
+'''
 
 For incoming calls from WebRTC Client instances, you can determine the caller's media settings for the call from the object passed to the onIncoming callback. For a call with video in both directions, the offeringVideo and canReceiveVideo properties of that object will be true. To answer the call with video, you need to pass a suitably configured AculabCloudCallOptions object to AculabCloudIncomingCall.answer(). For example:
 ```
