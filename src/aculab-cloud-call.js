@@ -14,6 +14,16 @@ export class AculabCloudCall {
         this._notified_remote_stream = null;
         this._ice_connected = false;
         this._termination_reason = '';
+        
+        /*
+         * In order to deal with the fact that react-native-webrtc implemented muted video by stopping the stream
+         * instead of sending a stream of 0's in order to shut off camera light when on mute.  Not a proper solution
+         * and bug is filed. see https://github.com/react-native-webrtc/react-native-webrtc/issues/643
+         * Work around is to have callbacks for local video mute/unmute to place a picture in the local view of the
+         * call window. Also remote video mute which detects when nothing is on the rtp line (not receivng RTP
+         * because of above.  There are 2 callbacks for the remote side to do something when it detects the other side has
+         * muted.
+         */
         this.onLocalVideoMuteCB = null;
         this.onLocalVideoUnMuteCB = null;
         this.onRemoteVideoMuteCB = null;
@@ -26,39 +36,41 @@ export class AculabCloudCall {
         
     }
     
-    _onLocalVideoMute()
+    
+    //Functions to call the callbacks with logging around it
+    _onLocalVideoMute(obj)
     {
-        //alert("onLocalVideoMute");
+        this.client.console_log(`_onLocalVideoMute`);
         if (this.onLocalVideoMuteCB != null)
         {
-            this.onLocalVideoMuteCB();
+            this.onLocalVideoMuteCB(obj);
         }
     }
     
-    _onLocalVideoUnMute()
+    _onLocalVideoUnMute(obj)
     {
-        //alert("onLocalVideoUnMute");
+        this.client.console_log(`_onLocalVideoUnMute`);
         if (this.onLocalVideoUnMuteCB != null)
         {
-            this.onLocalVideoUnMuteCB();
+            this.onLocalVideoUnMuteCB(obj);
         }
     }
     
-    _onRemoteVideoMute()
+    _onRemoteVideoMute(obj)
     {
-        //alert("onRemoteVideoMute");
+        this.client.console_log(`_onRemoteVideoMute`);
         if (this.onRemoteVideoMuteCB != null)
         {
-            this.onRemoteVideoMuteCB();
+            this.onRemoteVideoMuteCB(obj);
         }
     }
     
-    _onRemoteVideoUnMute()
+    _onRemoteVideoUnMute(obj)
     {
-        //alert("onRemoteVideoUnMute");
+        this.client.console_log(`_onRemoteVideoUnMute`);
         if (this.onRemoteVideoUnMuteCB != null)
         {
-            this.onRemoteVideoUnMuteCB();
+            this.onRemoteVideoUnMuteCB(obj);
         }
     }
     
@@ -136,34 +148,7 @@ export class AculabCloudCall {
             throw 'DTMF send error';
         }
     }
-    swap_cam()
-    {
-        if (this._session && this._session.sessionDescriptionHandler && this._session.sessionDescriptionHandler.peerConnection)
-        {
-            var pc = this._session.sessionDescriptionHandler.peerConnection;
-            if (pc.getSenders)
-            {
-                pc.getSenders().forEach(function (sender) {
-                    if (sender.track) {
-                        if (sender.track.kind == "video") {
-                            sender.track.prototype._switchCamera();
-                        }
-                    }
-                });
-            }
-            else
-            {
-                pc.getLocalStreams().forEach(function (stream) {
-                    //stream.getVideoTracks().forEach(function (track) {
-                    //   track.prototype._switchCamera();
-                    
-                    // });
-                    
-                });
-                
-            }
-        }
-    }
+   
     mute(mic, output_audio, camera, output_video)  {
         this.client.console_log('AculabCloudCall mute(mic=' + mic + ', output_audio=' + output_audio + ', camera=' + camera + ', output_video=' + output_video +')');
         if (camera === undefined) {
@@ -279,17 +264,13 @@ export class AculabCloudCall {
                     track = null;
                     if (this._remote_stream) {
                         var this_stream = this._remote_stream[0];
-                        //alert("REMOTE STREAM IS : " + this_stream)
                         track = this_stream.getVideoTracks()[0];
                         
                     }
                     
-                    //alert("TRACK IS: " + track);
                     if(track)
                     {
-                        //alert("Setting remote unmute");
                         track.onunmute = (function(obj) { this._onRemoteVideoUnMute(obj); }).bind(this);
-                        // alert("Setting remote mute");
                         track.onmute = (function(obj) { this._onRemoteVideoMute(obj); }).bind(this);
                     }
                     
