@@ -60,7 +60,8 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         if (this._peerConnection.getSenders) {
             return (super.setRemoteTrack(track));
         }
-        //*****CHRIS****  Don't want to actually use this function since we are using depricated getlocalStreams....  NEED THIS EVENTUALLY ONE OF THE APIS REACT NATIVE NEEDS
+        // Don't want to actually use this function since we are using depricated
+        // getlocalStreams....  NEED THIS EVENTUALLY ONE OF THE APIS REACT NATIVE NEEDS
         this.logger.debug("SessionDescriptionHandler.setRemoteTrack");
         
     }

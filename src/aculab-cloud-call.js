@@ -38,38 +38,30 @@ export class AculabCloudCall {
     
     
     //Functions to call the callbacks with logging around it
-    _onLocalVideoMute(obj)
-    {
+    _onLocalVideoMute(obj){
         this.client.console_log(`_onLocalVideoMute`);
-        if (this.onLocalVideoMuteCB != null)
-        {
+        if (this.onLocalVideoMuteCB != null){
             this.onLocalVideoMuteCB(obj);
         }
     }
     
-    _onLocalVideoUnMute(obj)
-    {
+    _onLocalVideoUnMute(obj){
         this.client.console_log(`_onLocalVideoUnMute`);
-        if (this.onLocalVideoUnMuteCB != null)
-        {
+        if (this.onLocalVideoUnMuteCB != null){
             this.onLocalVideoUnMuteCB(obj);
         }
     }
     
-    _onRemoteVideoMute(obj)
-    {
+    _onRemoteVideoMute(obj){
         this.client.console_log(`_onRemoteVideoMute`);
-        if (this.onRemoteVideoMuteCB != null)
-        {
+        if (this.onRemoteVideoMuteCB != null){
             this.onRemoteVideoMuteCB(obj);
         }
     }
     
-    _onRemoteVideoUnMute(obj)
-    {
+    _onRemoteVideoUnMute(obj){
         this.client.console_log(`_onRemoteVideoUnMute`);
-        if (this.onRemoteVideoUnMuteCB != null)
-        {
+        if (this.onRemoteVideoUnMuteCB != null){
             this.onRemoteVideoUnMuteCB(obj);
         }
     }
@@ -260,16 +252,16 @@ export class AculabCloudCall {
                 this.client.console_log('AculabCloudCall calling onConnected' + ` ice: ${this._ice_connected}`);
                 try {
                     
-                    
+                    //Need to do somesetup of mute callbacks for remiote stream
                     track = null;
+                    //get video track
                     if (this._remote_stream) {
                         var this_stream = this._remote_stream[0];
                         track = this_stream.getVideoTracks()[0];
                         
                     }
-                    
-                    if(track)
-                    {
+                    //If we have a video track set callbacks
+                    if(track){
                         track.onunmute = (function(obj) { this._onRemoteVideoUnMute(obj); }).bind(this);
                         track.onmute = (function(obj) { this._onRemoteVideoMute(obj); }).bind(this);
                     }
