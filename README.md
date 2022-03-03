@@ -1,4 +1,4 @@
-# How to Aculab Write WebRTC Apps
+# How to Write Aculab WebRTC Apps
 
 This guide shows the basic steps how to write WebRTC applications for Aculab Cloud. Refer to the API guide for detailed documentation on the APIs used.
 
@@ -31,7 +31,7 @@ To make a call with video to a WebRTC Client instance you need to pass a suitabl
     };
     call = acc.callClient("other_client_id", token, options);
 ```
- In order to deal with the fact that react-native-webrtc implemented muted video by stopping the stream instead of sending a stream of 0's in order to shut off camera light when on mute.  See https://github.com/react-native-webrtc/react-native-webrtc/issues/643 Work around is to have callbacks for local video mute/unmute to place a picture in the local view of the call window. Also remote video mute which detects when nothing is on the rtp line (not receivng RTP because of above.  There are 2 callbacks for the remote side to do something when it detects the other side has muted. Set these callbacks to create teh expected behavior in user space.
+ In order to deal with the fact that react-native-webrtc implemented muted video by stopping the stream instead of sending a stream of 0's in order to shut off camera light.  See https://github.com/react-native-webrtc/react-native-webrtc/issues/643 Work around is to have callbacks for local video mute/unmute to place a picture in the local view of the call window. And call backs for remote video mute/unmute which detects when nothing is on the rtp line (not receivng RTP because of above).  There are 2 callbacks for the remote side to do something when it detects the other side has muted. Set these callbacks to create the expected behavior in user space.
  
 ''' 
         aculab_cloud_call.onLocalVideoMuteCB 
