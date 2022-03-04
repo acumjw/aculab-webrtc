@@ -32,13 +32,18 @@ This module is used for Android and iOS app development by [Aculab’s React Nat
 
 We have implemented a workaround that makes callbacks available for local and remote video mute/unmute.  
 
-'''aculab_cloud_call.onLocalVideoMuteCB
-aculab_cloud_call.onLocalVideoUnMuteCB
 '''
+    aculab_cloud_call.onLocalVideoMuteCB
+    aculab_cloud_call.onLocalVideoUnMuteCB
+'''
+
 The local callbacks are triggered when video is muted/unmated and can place an image in the local view of the call window.
+
 '''
-aculab_cloud_call.onRemoteVideoMuteCB
-aculab_cloud_call.onRemoteVideoUnMuteCB '''
+    aculab_cloud_call.onRemoteVideoMuteCB
+    aculab_cloud_call.onRemoteVideoUnMuteCB 
+'''
+
 The remote callbacks are triggered when RTP data is detected to have started or stopped and can indicate the change in state to the user.
 
 
