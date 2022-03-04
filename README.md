@@ -1,16 +1,13 @@
 # How to Write Aculab WebRTC Apps
 
-This guide shows the basic steps how to write WebRTC applications for Aculab Cloud. Refer to the API guide for detailed documentation on the APIs used.
+This guide shows the basic steps needed to write WebRTC applications for Aculab Cloud. Refer to the API guide for detailed documentation on the APIs used.
 
-WebRTC Client instances can call, and be called from, Aculab Cloud services and other WebRTC Client instances. They cannot call PSTN or SIP phones directly, although of course Aculab Cloud services can call those devices.
+WebRTC Client instances can call, and be called from, Aculab Cloud services( https://www.aculab.com/cloud/guides/outbound-and-inbound-services/) and other WebRTC Client instances. They cannot call PSTN or SIP phones directly, although of course Aculab Cloud services can call those devices.
 
-Each WebRTC Client instance can be configured to handle multiple concurrent calls, and a web page can multiple WebRTC Client instances. The maximum number of concurrent calls is browser dependent. The code shown in this guide handles only one WebRTC Client instance with one call.
 
 ## Integrating WebRTC
 
-Implementations of WebRTC are still evolving and each browser has different levels of support for codecs and other WebRTC features. Before deployment, please be sure to try out our WebRTC interface in the environment where you expect to use it.
-
-Include the JavaScript library by adding the aculab-webrtc npm package
+Include the JavaScript library by adding the aculab-webrtc npm package (https://www.npmjs.com/package/react-native-aculab-client)
 
 ```
 yarn add aculab-webrtc
@@ -31,14 +28,20 @@ To make a call with video to a WebRTC Client instance you need to pass a suitabl
     };
     call = acc.callClient("other_client_id", token, options);
 ```
- In order to deal with the fact that react-native-webrtc implemented muted video by stopping the stream instead of sending a stream of 0's in order to shut off camera light.  See https://github.com/react-native-webrtc/react-native-webrtc/issues/643 Work around is to have callbacks for local video mute/unmute to place a picture in the local view of the call window. And call backs for remote video mute/unmute which detects when nothing is on the rtp line (not receivng RTP because of above).  There are 2 callbacks for the remote side to do something when it detects the other side has muted. Set these callbacks to create the expected behavior in user space.
- 
-''' 
-        aculab_cloud_call.onLocalVideoMuteCB 
-        aculab_cloud_call.onLocalVideoUnMuteCB 
-        aculab_cloud_call.onRemoteVideoMuteCB 
-        aculab_cloud_call.onRemoteVideoUnMuteCB 
+This module is used for Android and iOS app development by Aculab’s React Native (link to https://github.com/aculab-com/react-native-aculab-client) package, which has a dependency on the react-native-webrtc module. This mutes video by stopping the stream, rather than sending a stream of 0's in order to shut off camera light (see https://github.com/react-native-webrtc/react-native-webrtc/issues/643).
+
+We have implemented a workaround that makes callbacks available for local and remote video mute/unmute.  
+
+'''aculab_cloud_call.onLocalVideoMuteCB
+aculab_cloud_call.onLocalVideoUnMuteCB
 '''
+The local callbacks are triggered when video is muted/unmated and can place an image in the local view of the call window.
+'''
+aculab_cloud_call.onRemoteVideoMuteCB
+aculab_cloud_call.onRemoteVideoUnMuteCB '''
+The remote callbacks are triggered when RTP data is detected to have started or stopped and can indicate the change in state to the user.
+
+
 
 For incoming calls from WebRTC Client instances, you can determine the caller's media settings for the call from the object passed to the onIncoming callback. For a call with video in both directions, the offeringVideo and canReceiveVideo properties of that object will be true. To answer the call with video, you need to pass a suitably configured AculabCloudCallOptions object to AculabCloudIncomingCall.answer(). For example:
 ```
@@ -66,10 +69,11 @@ Note that calls will fail if the constraints require a local video stream but th
 
 To create a WebRTC Client instance, you will need the following information:
 
-Information	Description
-Cloud ID	The Cloud ID for your Aculab Cloud account, for example 1-2-0.
-WebRTC Access Key	Your WebRTC Access Key which can be found in the Aculab Cloud portal.
-Client Id	A text identifier which Aculab Cloud uses to identify a specific WebRTC Client instance.
+
+Cloud ID - The Cloud ID ( https://www.aculab.com/cloud/guides/cloud-regions/) for your Aculab Cloud account, for example 1-2-0.
+WebRTC Access Key - The WebRTC Access Key  (https://cloud.aculab.com/home/webrtcsettings) for your Aculab Cloud account.
+Client Id -	A text identifier which Aculab Cloud uses to identify a specific WebRTC Client instance.
+
 All WebRTC Client instances use the AculabCloudClient class. Create a new instance of the class with:
 
 ```
@@ -84,16 +88,16 @@ where logLevel is between 0 and 6 inclusive. 0 disables logging.
 
 ## Enabling Incoming Calls on a WebRTC Client Instance
 
-If you will be accepting incoming WebRTC calls, then you need to set up the onIncoming and onIncomingState callbacks.
+If you will be accepting incoming WebRTC calls, then you need to set up the onIncoming and onIncomingState callbacks. 
 
 ```
     acc.onIncoming = newCall;
     acc.onIncomingState = incomingState;
 ```
 
-See Accepting an Incoming WebRTC Call for information on the newCall and incomingState functions.
+See [Accepting an Incoming WebRTC Call](#accepting-an-incoming-webrtc-call) for information on the newCall and incomingState functions.
 
-A WebRTC Client instance needs a token to be able to receive incoming WebRTC calls. This token is retrieved from the webrtc_generate_token Web Services API. It should be generated by server side code, so the client does not know your web services API access key. An example as follows:
+A WebRTC Client instance needs a token to be able to receive incoming WebRTC calls. This token is retrieved from the webrtc_generate_token Web Services API (https://www.aculab.com/cloud/web-services/webrtc-clients/ ). It should be generated by server side code, so the client does not know your web services API access key. An example as follows:
 
 ```
     fetch('/get_webrtc_token_for_client', {
@@ -110,7 +114,7 @@ The onIncomingState callback is used to notify you if incoming WebRTC calls are 
 
 WebRTC Client instances can call other WebRTC Client instances. This is achieved by calling AculabCloudClient.callClient() then setting up the AculabCloudOutgoingCall callbacks to handle the call control events.
 
-A WebRTC Client instance needs a token to be able to call another WebRTC Client instance. This token is retrieved from the webrtc_generate_token Web Services API. It should be generated by server side code, so the client does not know your web services API access key.
+A WebRTC Client instance needs a token to be able to call another WebRTC Client instance. This token is retrieved from the webrtc_generate_token Web Services API (https://www.aculab.com/cloud/web-services/webrtc-clients/ ). It should be generated by server side code, so the client does not know your web services API access key.
 
 An AculabCloudCallOptions object can be passed to configure the media settings. For example, this can be used to make video calls by requesting access to the user's webcam.
 
@@ -124,9 +128,7 @@ An AculabCloudCallOptions object can be passed to configure the media settings. 
     call.onConnected = connected;
 ```
 
-See Call Control Callbacks for information on these callbacks.
-
-Such calls are charged for. See Call costs for information on finding these costs.
+See [Call Control Callbacks](#call-control-callbacks) for information on these callbacks.
 
 ## Calling an Aculab Cloud Service from WebRTC
 
@@ -141,7 +143,7 @@ WebRTC Client instances can call Aculab Cloud inbound services. This is achieved
     call.onConnected = connected;
 ```
 
-See Call Control Callbacks for information on these callbacks.
+See [Call Control Callbacks](#call-control-callbacks) for information on these callbacks.
 
 ## Calling a WebRTC Client Instance from Aculab Cloud
 
@@ -228,7 +230,7 @@ The onIncoming callback should set up the AculabCloudIncomingCall callbacks, not
     }
 ```
 
-See Call Control Callbacks for information on these callbacks.
+See [Call Control Callbacks](#call-control-callbacks) for information on these callbacks.
 
 ### Answering the call
 
@@ -236,7 +238,7 @@ When the user accepts the incoming call the call's answer() function needs to be
 
 ### Call Control Callbacks
 
-The various call control callbacks have been set up in the code snippets above. Example code showing how these callbacks are implemented is shown in this section.
+The various Call Control Callbacks have been set up in the code snippets above. Example code showing how these callbacks are implemented is shown in this section.
 
 ### onDisconnect
 
