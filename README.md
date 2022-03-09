@@ -7,7 +7,7 @@ Refer to interface.html for detailed documentation on the APIs used.
 
 ## Integrating WebRTC
 
-Include the JavaScript library by adding the [aculab-webrtc](https://www.npmjs.com/package/react-native-aculab-client) npm package
+Include the JavaScript library by adding the [aculab-webrtc](https://www.npmjs.com/package/aculab-webrtc) npm package
 
 ```
 yarn add aculab-webrtc
