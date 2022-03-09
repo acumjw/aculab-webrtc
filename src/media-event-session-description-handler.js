@@ -76,8 +76,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         if (this._peerConnection.getSenders) {
             return (super.setLocalMediaStream(stream));
         }
-        //*****CHRIS*****  Probably need to remove the existing stream stillm but haven't had time to do this
-        // will happen probably when working on mute/unmute
         this._peerConnection.addStream(stream);
         this._localMediaStream = stream;
         return Promise.resolve();
@@ -99,18 +97,13 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
      * @param {String} tones A string containing DTMF digits
      * @param {Object} [options] Options object to be used by sendDtmf
      * @returns {boolean} true if DTMF send is successful, false otherwise
-     *****CHRIS***** THIS IS A BIT OF A HACKTILL GETSENDERS IMPLEMENTED
-     ******NEEDS CODE IN NATIVE STUFF.
      */
-    //HACK ALERT HACK ALERT  THIS IS BULLSHIT WITH SOME NATIVE CODE IN AculabWebRTCNExtern.m
-    //Really need sender/receiver support in react-native
     sendDtmf(indtmf, options) {
         if (this._peerConnection.getSenders) {
             return ( super.sendDtmf(indtmf, options));
         }
         
-        //If old way of doing shit......  For iOS and Android
-        //console.log('*****CHRIS***** sending dtmf SESSION', this._session);
+        
         this.logger.debug('AculabCloudCall sendDtmf(' + indtmf + ')');
         if (indtmf.match(/[^0-9A-Da-d#*]/) != null) {
             throw 'Invalid DTMF string';
