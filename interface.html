@@ -291,6 +291,90 @@
 			<td>The call object that is reporting the event.</td>
 		</tr>
 	</table>
+	<h3>onLocalVideoMute</h3>
+	<p>Called when the call's local video track has been muted.
+	<p>The parameter object will have the following properties:</p>
+	<table border="1">
+		<tr>
+			<th>property</th>
+			<th>value</th>
+		</tr>
+		<tr>
+			<td><code>call</code></td>
+			<td>The call object that is reporting the event.</td>
+		</tr>
+		<tr>
+			<td><code>stream</code></td>
+			<td>A MediaStream object that is the local media stream.</td>
+		</tr>
+		<tr>
+			<td><code>track</code></td>
+			<td>A MediaStreamTrack object that is the muted local media track.</td>
+		</tr>
+	</table>
+	<h3>onLocalVideoUnmute</h3>
+	<p>Called when the call's local video track has been unmuted.
+	<p>The parameter object will have the following properties:</p>
+	<table border="1">
+		<tr>
+			<th>property</th>
+			<th>value</th>
+		</tr>
+		<tr>
+			<td><code>call</code></td>
+			<td>The call object that is reporting the event.</td>
+		</tr>
+		<tr>
+			<td><code>stream</code></td>
+			<td>A MediaStream object that is the local media stream.</td>
+		</tr>
+		<tr>
+			<td><code>track</code></td>
+			<td>A MediaStreamTrack object that is the unmuted local media track.</td>
+		</tr>
+	</table>
+	<h3>onRemoteVideoMute</h3>
+	<p>Called when the call's remote video track has been muted.
+	<p>The parameter object will have the following properties:</p>
+	<table border="1">
+		<tr>
+			<th>property</th>
+			<th>value</th>
+		</tr>
+		<tr>
+			<td><code>call</code></td>
+			<td>The call object that is reporting the event.</td>
+		</tr>
+		<tr>
+			<td><code>stream</code></td>
+			<td>A MediaStream object that is the remote media stream.</td>
+		</tr>
+		<tr>
+			<td><code>track</code></td>
+			<td>A MediaStreamTrack object that is the muted remote media track.</td>
+		</tr>
+	</table>
+	<h3>onRemoteVideoUnmute</h3>
+	<p>Called when the call's remote video track has been unmuted.
+	<p>The parameter object will have the following properties:</p>
+	<table border="1">
+		<tr>
+			<th>property</th>
+			<th>value</th>
+		</tr>
+		<tr>
+			<td><code>call</code></td>
+			<td>The call object that is reporting the event.</td>
+		</tr>
+		<tr>
+			<td><code>stream</code></td>
+			<td>A MediaStream object that is the remote media stream.</td>
+		</tr>
+		<tr>
+			<td><code>track</code></td>
+			<td>A MediaStreamTrack object that is the unmuted remote media track.</td>
+		</tr>
+	</table>
 	<h1>AculabCloudOutgoingCall extends AculabCloudCall</h1>
 	The class for outgoing call objects as returned by callService() and callClient(). No additional functions are defined.
 	<h2>AculabCloudOutgoingCall callback properties</h2>

@@ -316,6 +316,10 @@
 			slot_obj.call.onConnecting = connecting.bind(null, slot);
 			slot_obj.call.onConnected = connected.bind(null, slot);
 			slot_obj.call.onError = handle_error.bind(null, slot);
+			slot_obj.call.onLocalVideoMute = logVideoMuteUnmute.bind(null, "local", "mute");
+			slot_obj.call.onLocalVideoUnmute = logVideoMuteUnmute.bind(null, "local", "unmute");
+			slot_obj.call.onRemoteVideoMute = logVideoMuteUnmute.bind(null, "remote", "mute");
+			slot_obj.call.onRemoteVideoUnmute = logVideoMuteUnmute.bind(null, "remote", "unmute");
 			slot_obj.inbound = false;
 			document.getElementById(slot + "-remote").value = type + ": " + targ;
 			document.getElementById(slot + "-target-type").disabled = true;
@@ -344,6 +348,9 @@
 			console.log("send dtmf:" + dtmf);
 			slot_obj.call.sendDtmf(dtmf);
 		}
+	}
+	function logVideoMuteUnmute(loc, change, obj) {
+		console.log(loc + " video " + change + " [call: " + obj.call + ", stream: " + obj.stream + ", track: " + obj.track);
 	}
 	function new_call(obj) {
 		var slot = '';
@@ -382,7 +389,11 @@
 		slot_obj.call.onConnecting = connecting.bind(null, slot);
 		slot_obj.call.onConnected = connected.bind(null, slot);
 		slot_obj.call.onError = handle_error.bind(null, slot);
-		
+		slot_obj.call.onLocalVideoMute = logVideoMuteUnmute.bind(null, "local", "mute");
+		slot_obj.call.onLocalVideoUnmute = logVideoMuteUnmute.bind(null, "local", "unmute");
+		slot_obj.call.onRemoteVideoMute = logVideoMuteUnmute.bind(null, "remote", "mute");
+		slot_obj.call.onRemoteVideoUnmute = logVideoMuteUnmute.bind(null, "remote", "unmute");
+
 		var player = slot_obj.player;
 		if (player.canPlayType('audio/wav')) {
 			if (!slot_obj.gotremotestream) {
