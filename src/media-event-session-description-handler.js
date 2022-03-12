@@ -52,7 +52,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
     }
     get remoteMediaStream() {
         if (this._peerConnection.getSenders) {
-            return (super.getRemoteMediaStream());
+            return super.remoteMediaStream;
         }
         return this._peerConnection.getRemoteStreams()
     }
@@ -66,9 +66,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         
     }
     setLocalMediaStream(stream) {
-        if (this._peerConnection.getSenders) {
-            return (super.setLocalMediaStream());
-        }
         this.logger.debug("SessionDescriptionHandler.setLocalMediaStream");
         if (!this._peerConnection) {
             throw new Error("Peer connection undefined.");
@@ -263,22 +260,201 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         }
         
     }
+   
+    updateDirection(options) {
+        if (this._peerConnection === undefined) {
+            return Promise.reject(new Error("Peer connection closed."));
+        }
+        const getTransceiverKind = ((transceiver) => {
+            if (transceiver.sender && transceiver.sender.track) {
+                return transceiver.sender.track.kind;
+            }
+            if (transceiver.receiver && transceiver.receiver.track) {
+                return transceiver.receiver.track.kind;
+            }
+            return "unknown";
+        });
+        const updateTransceiverCodecsAndBitrates = ((transceiver, kind) => {
+            if (transceiver.setCodecPreferences) {
+                if (kind == "video") {
+                    this.logger.debug("SessionDescriptionHandler.updateDirection - setting video codecs");
+                    transceiver.setCodecPreferences(options.codecs.video);
+                } else if (kind == "audio") {
+                    this.logger.debug("SessionDescriptionHandler.updateDirection - setting audio codecs");
+                    transceiver.setCodecPreferences(options.codecs.audio);
+                }
+            }
+            if (transceiver.sender) {
+                let bitrate = undefined;
+                if (kind == "video") {
+                    bitrate = options.maxBitrateVideo;
+                } else if (kind == "audio") {
+                    bitrate = options.maxBitrateAudio;
+                }
+                if (bitrate !== undefined) {
+                    const parameters = transceiver.sender.getParameters();
+                    if (!parameters.encodings) {
+                        parameters.encodings = [{}];
+                    }
+                    let changed = false;
+                    parameters.encodings.forEach((enc) => {
+                        if (!isFinite(bitrate) || bitrate < 0) {
+                            if (Object.prototype.hasOwnProperty.call(enc, 'maxBitrate')) {
+                                delete enc.maxBitrate;
+                                changed = true;
+                            }
+                        } else {
+                            if (enc.maxBitrate != bitrate) {
+                                enc.maxBitrate = bitrate;
+                                changed = true;
+                            }
+                        }
+                    });
+                    if (changed) {
+                        this.logger.debug("SessionDescriptionHandler.updateDirection - setting " + kind + " bandwidth");
+                        transceiver.sender.setParameters(parameters)
+                        .then(() => {})
+                        .catch(e => this.logger.error(e));
+                    }
+                }
+            }
+        });
+        switch (this._peerConnection.signalingState) {
+            case "stable":
+                // if we are stable, assume we are creating a local offer
+                this.logger.debug("SessionDescriptionHandler.updateDirection - setting offer direction");
+            {
+                let vid_dir = "";
+                if (options.constraints.video) {
+                    vid_dir += "send";
+                }
+                if (options.receiveVideo) {
+                    vid_dir += "recv";
+                }
+                if (vid_dir.length == 4) {
+                    vid_dir += "only";
+                } else if (vid_dir == "") {
+                    vid_dir = "inactive";
+                }
+                let aud_dir = "";
+                if (options.constraints.audio) {
+                    aud_dir += "send";
+                }
+                if (options.receiveAudio) {
+                    aud_dir += "recv";
+                }
+                if (aud_dir.length == 4) {
+                    aud_dir += "only";
+                } else if (aud_dir == "") {
+                    aud_dir = "inactive";
+                }
+                // set the transceiver direction to the offer direction
+                this._peerConnection.getTransceivers().forEach((transceiver) => {
+                    if (transceiver.direction /* guarding, but should always be true */) {
+                        let offerDirection = "inactive";
+                        let kind = getTransceiverKind(transceiver);
+                        if (kind == "video") {
+                            offerDirection = vid_dir;
+                            vid_dir = "inactive"; // only one video track please
+                        }
+                        if (kind == "audio") {
+                            offerDirection = aud_dir;
+                            aud_dir = "inactive"; // only one audio track please
+                        }
+                        if (transceiver.direction !== offerDirection) {
+                            transceiver.direction = offerDirection;
+                        }
+                        updateTransceiverCodecsAndBitrates(transceiver, kind);
+                    }
+                });
+            }
+                break;
+            case "have-remote-offer":
+                // if we have a remote offer, assume we are creating a local answer
+                this.logger.debug("SessionDescriptionHandler.updateDirection - setting answer direction");
+            {
+                // determine the offered direction
+                const description = this._peerConnection.remoteDescription;
+                if (!description) {
+                    throw new Error("Failed to read remote offer");
+                }
+                const offeredDirections = MediaEventSessionDescriptionHandler.get_audio_video_directions(description.sdp);
+                let vid_dir = "";
+                if (options.constraints.video && offeredDirections.video.includes("recv")) {
+                    vid_dir += "send";
+                }
+                if (options.receiveVideo && offeredDirections.video.includes("send")) {
+                    vid_dir += "recv";
+                }
+                if (vid_dir.length == 4) {
+                    vid_dir += "only";
+                } else if (vid_dir == "") {
+                    vid_dir = "inactive";
+                }
+                let aud_dir = "";
+                if (options.constraints.audio && offeredDirections.audio.includes("recv")) {
+                    aud_dir += "send";
+                }
+                if (options.receiveAudio && offeredDirections.audio.includes("send")) {
+                    aud_dir += "recv";
+                }
+                if (aud_dir.length == 4) {
+                    aud_dir += "only";
+                } else if (aud_dir == "") {
+                    aud_dir = "inactive";
+                }
+                
+                // set the transceiver direction to the answer direction
+                this._peerConnection.getTransceivers().forEach((transceiver) => {
+                    if (transceiver.direction /* guarding, but should always be true */ && transceiver.direction !== "stopped") {
+                        let answerDirection = "inactive";
+                        let kind = getTransceiverKind(transceiver);
+                        if (transceiver.mid !== null) {
+                            if (kind == "video") {
+                                answerDirection = vid_dir;
+                                vid_dir = "inactive"; // only one video track please
+                            }
+                            if (kind == "audio") {
+                                answerDirection = aud_dir;
+                                aud_dir = "inactive"; // only one audio track please
+                            }
+                        }
+                        if (answerDirection == "inactive") {
+                            transceiver.stop();
+                        } else {
+                            if (transceiver.direction !== answerDirection) {
+                                transceiver.direction = answerDirection;
+                            }
+                            updateTransceiverCodecsAndBitrates(transceiver, kind);
+                        }
+                    }
+                });
+            }
+                break;
+            case "have-local-offer":
+            case "have-local-pranswer":
+            case "have-remote-pranswer":
+            case "closed":
+            default:
+                return Promise.reject(new Error("Invalid signaling state " + this._peerConnection.signalingState));
+        }
+        return Promise.resolve();
+    }
     
     static fixup_options(options) {
         const defaults = {
-        constraints: {
-        audio: true,
-        video: false
-        
-        },
-        receiveAudio: undefined,
-        receiveVideo: undefined,
-        codecs: {
-        audio: [],
-        video: []
-        },
-        maxBitrateAudio: undefined,
-        maxBitrateVideo: undefined,
+            constraints: {
+            audio: true,
+            video: false
+            },
+            receiveAudio: undefined,
+            receiveVideo: undefined,
+            codecs: {
+            audio: [],
+            video: []
+            },
+            maxBitrateAudio: undefined,
+            maxBitrateVideo: undefined,
         };
         let opts = {...defaults, ...options};
         if (opts.receiveAudio === undefined) {

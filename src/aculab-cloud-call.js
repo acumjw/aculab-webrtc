@@ -1,5 +1,4 @@
 import { SessionState } from "sip.js";
-import React, { Component } from 'react';
 
 export class AculabCloudCall {
     /**
@@ -90,6 +89,7 @@ export class AculabCloudCall {
      */
     set session(sess) {
         this._session = sess;
+        this._callId = sess.request.callId;
         this._session.delegate = {
         onBye: (bye) => {
             // extract reason from BYE message
@@ -119,6 +119,9 @@ export class AculabCloudCall {
                 this._onterminated();
             }
         })
+    }
+    callId() {
+        return this._callId;
     }
     /**
      * @param {String} indtmf
@@ -253,10 +256,10 @@ export class AculabCloudCall {
                 try {
                     
                     //Need to do somesetup of mute callbacks for remiote stream
-                    track = null;
+                    var track = null;
                     //get video track
                     if (this._remote_stream) {
-                        var this_stream = this._remote_stream[0];
+                        var this_stream = this._remote_stream;
                         track = this_stream.getVideoTracks()[0];
                         
                     }
