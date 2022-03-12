@@ -54,7 +54,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         if (this._peerConnection.getSenders) {
             return super.remoteMediaStream;
         }
-        return this._peerConnection.getRemoteStreams()[0]
+        return this._peerConnection.getRemoteStreams()
     }
     setRemoteTrack(track) {
         if (this._peerConnection.getSenders) {
@@ -237,7 +237,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
             this._peerConnection.close();
         }
     }
-
+    
     setDirection(sdp) {
         // eslint-disable-next-line @typescript-eslint/prefer-regexp-exec
         const match = sdp.match(/a=(sendrecv|sendonly|recvonly|inactive)/);
@@ -260,7 +260,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         }
         
     }
-
+   
     updateDirection(options) {
         if (this._peerConnection === undefined) {
             return Promise.reject(new Error("Peer connection closed."));
@@ -313,8 +313,8 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
                     if (changed) {
                         this.logger.debug("SessionDescriptionHandler.updateDirection - setting " + kind + " bandwidth");
                         transceiver.sender.setParameters(parameters)
-                            .then(() => {})
-                            .catch(e => this.logger.error(e));
+                        .then(() => {})
+                        .catch(e => this.logger.error(e));
                     }
                 }
             }
@@ -323,113 +323,113 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
             case "stable":
                 // if we are stable, assume we are creating a local offer
                 this.logger.debug("SessionDescriptionHandler.updateDirection - setting offer direction");
-                {
-                    let vid_dir = "";
-                    if (options.constraints.video) {
-                        vid_dir += "send";
-                    }
-                    if (options.receiveVideo) {
-                        vid_dir += "recv";
-                    }
-                    if (vid_dir.length == 4) {
-                        vid_dir += "only";
-                    } else if (vid_dir == "") {
-                        vid_dir = "inactive";
-                    }
-                    let aud_dir = "";
-                    if (options.constraints.audio) {
-                        aud_dir += "send";
-                    }
-                    if (options.receiveAudio) {
-                        aud_dir += "recv";
-                    }
-                    if (aud_dir.length == 4) {
-                        aud_dir += "only";
-                    } else if (aud_dir == "") {
-                        aud_dir = "inactive";
-                    }
-                    // set the transceiver direction to the offer direction
-                    this._peerConnection.getTransceivers().forEach((transceiver) => {
-                        if (transceiver.direction /* guarding, but should always be true */) {
-                            let offerDirection = "inactive";
-                            let kind = getTransceiverKind(transceiver);
-                            if (kind == "video") {
-                                offerDirection = vid_dir;
-                                vid_dir = "inactive"; // only one video track please
-                            }
-                            if (kind == "audio") {
-                                offerDirection = aud_dir;
-                                aud_dir = "inactive"; // only one audio track please
-                            }
-                            if (transceiver.direction !== offerDirection) {
-                                transceiver.direction = offerDirection;
-                            }
-                            updateTransceiverCodecsAndBitrates(transceiver, kind);
-                        }
-                    });
+            {
+                let vid_dir = "";
+                if (options.constraints.video) {
+                    vid_dir += "send";
                 }
+                if (options.receiveVideo) {
+                    vid_dir += "recv";
+                }
+                if (vid_dir.length == 4) {
+                    vid_dir += "only";
+                } else if (vid_dir == "") {
+                    vid_dir = "inactive";
+                }
+                let aud_dir = "";
+                if (options.constraints.audio) {
+                    aud_dir += "send";
+                }
+                if (options.receiveAudio) {
+                    aud_dir += "recv";
+                }
+                if (aud_dir.length == 4) {
+                    aud_dir += "only";
+                } else if (aud_dir == "") {
+                    aud_dir = "inactive";
+                }
+                // set the transceiver direction to the offer direction
+                this._peerConnection.getTransceivers().forEach((transceiver) => {
+                    if (transceiver.direction /* guarding, but should always be true */) {
+                        let offerDirection = "inactive";
+                        let kind = getTransceiverKind(transceiver);
+                        if (kind == "video") {
+                            offerDirection = vid_dir;
+                            vid_dir = "inactive"; // only one video track please
+                        }
+                        if (kind == "audio") {
+                            offerDirection = aud_dir;
+                            aud_dir = "inactive"; // only one audio track please
+                        }
+                        if (transceiver.direction !== offerDirection) {
+                            transceiver.direction = offerDirection;
+                        }
+                        updateTransceiverCodecsAndBitrates(transceiver, kind);
+                    }
+                });
+            }
                 break;
             case "have-remote-offer":
                 // if we have a remote offer, assume we are creating a local answer
                 this.logger.debug("SessionDescriptionHandler.updateDirection - setting answer direction");
-                {
-                    // determine the offered direction
-                    const description = this._peerConnection.remoteDescription;
-                    if (!description) {
-                        throw new Error("Failed to read remote offer");
-                    }
-                    const offeredDirections = MediaEventSessionDescriptionHandler.get_audio_video_directions(description.sdp);
-                    let vid_dir = "";
-                    if (options.constraints.video && offeredDirections.video.includes("recv")) {
-                        vid_dir += "send";
-                    }
-                    if (options.receiveVideo && offeredDirections.video.includes("send")) {
-                        vid_dir += "recv";
-                    }
-                    if (vid_dir.length == 4) {
-                        vid_dir += "only";
-                    } else if (vid_dir == "") {
-                        vid_dir = "inactive";
-                    }
-                    let aud_dir = "";
-                    if (options.constraints.audio && offeredDirections.audio.includes("recv")) {
-                        aud_dir += "send";
-                    }
-                    if (options.receiveAudio && offeredDirections.audio.includes("send")) {
-                        aud_dir += "recv";
-                    }
-                    if (aud_dir.length == 4) {
-                        aud_dir += "only";
-                    } else if (aud_dir == "") {
-                        aud_dir = "inactive";
-                    }
-
-                    // set the transceiver direction to the answer direction
-                    this._peerConnection.getTransceivers().forEach((transceiver) => {
-                        if (transceiver.direction /* guarding, but should always be true */ && transceiver.direction !== "stopped") {
-                            let answerDirection = "inactive";
-                            let kind = getTransceiverKind(transceiver);
-                            if (transceiver.mid !== null) {
-                                if (kind == "video") {
-                                    answerDirection = vid_dir;
-                                    vid_dir = "inactive"; // only one video track please
-                                }
-                                if (kind == "audio") {
-                                    answerDirection = aud_dir;
-                                    aud_dir = "inactive"; // only one audio track please
-                                }
+            {
+                // determine the offered direction
+                const description = this._peerConnection.remoteDescription;
+                if (!description) {
+                    throw new Error("Failed to read remote offer");
+                }
+                const offeredDirections = MediaEventSessionDescriptionHandler.get_audio_video_directions(description.sdp);
+                let vid_dir = "";
+                if (options.constraints.video && offeredDirections.video.includes("recv")) {
+                    vid_dir += "send";
+                }
+                if (options.receiveVideo && offeredDirections.video.includes("send")) {
+                    vid_dir += "recv";
+                }
+                if (vid_dir.length == 4) {
+                    vid_dir += "only";
+                } else if (vid_dir == "") {
+                    vid_dir = "inactive";
+                }
+                let aud_dir = "";
+                if (options.constraints.audio && offeredDirections.audio.includes("recv")) {
+                    aud_dir += "send";
+                }
+                if (options.receiveAudio && offeredDirections.audio.includes("send")) {
+                    aud_dir += "recv";
+                }
+                if (aud_dir.length == 4) {
+                    aud_dir += "only";
+                } else if (aud_dir == "") {
+                    aud_dir = "inactive";
+                }
+                
+                // set the transceiver direction to the answer direction
+                this._peerConnection.getTransceivers().forEach((transceiver) => {
+                    if (transceiver.direction /* guarding, but should always be true */ && transceiver.direction !== "stopped") {
+                        let answerDirection = "inactive";
+                        let kind = getTransceiverKind(transceiver);
+                        if (transceiver.mid !== null) {
+                            if (kind == "video") {
+                                answerDirection = vid_dir;
+                                vid_dir = "inactive"; // only one video track please
                             }
-                            if (answerDirection == "inactive") {
-                                transceiver.stop();
-                            } else {
-                                if (transceiver.direction !== answerDirection) {
-                                    transceiver.direction = answerDirection;
-                                }
-                                updateTransceiverCodecsAndBitrates(transceiver, kind);
+                            if (kind == "audio") {
+                                answerDirection = aud_dir;
+                                aud_dir = "inactive"; // only one audio track please
                             }
                         }
-                    });
-                }
+                        if (answerDirection == "inactive") {
+                            transceiver.stop();
+                        } else {
+                            if (transceiver.direction !== answerDirection) {
+                                transceiver.direction = answerDirection;
+                            }
+                            updateTransceiverCodecsAndBitrates(transceiver, kind);
+                        }
+                    }
+                });
+            }
                 break;
             case "have-local-offer":
             case "have-local-pranswer":
@@ -440,18 +440,18 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         }
         return Promise.resolve();
     }
-
+    
     static fixup_options(options) {
         const defaults = {
             constraints: {
-                audio: true,
-                video: false
+            audio: true,
+            video: false
             },
             receiveAudio: undefined,
             receiveVideo: undefined,
             codecs: {
-                audio: [],
-                video: []
+            audio: [],
+            video: []
             },
             maxBitrateAudio: undefined,
             maxBitrateVideo: undefined,
