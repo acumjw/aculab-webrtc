@@ -12,7 +12,7 @@ AculabCloudCaller version ${pkg.version}
 
 `;
 /* add sub module licenses to banner */
-const submods = ['sip.js'];
+const submods = ['sip.js', 'webrtc-adapter'];
 submods.forEach((m) => {
   var licence = fs.readFileSync(`./node_modules/${m}/LICENSE.md`, 'utf8').replaceAll(/^/gm, "  ");
   banner += `
@@ -38,10 +38,6 @@ module.exports = function (env) {
       libraryTarget: 'umd',
       globalObject: 'this'
     },
-    externals: [
-        'react-native',
-        'react-native-webrtc'
-    ],
     node: false,
     resolve: {
       extensions: ['.js']
@@ -61,16 +57,6 @@ module.exports = function (env) {
       new webpack.BannerPlugin({
         banner: banner
       })
-    ],
-    module: {
-        rules: [
-            {
-                test: /\.m?js/,
-                resolve: {
-                    fullySpecified: false
-                }
-            }
-        ]
-    }
+    ]
   };
 }
