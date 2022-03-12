@@ -52,7 +52,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
     }
     get remoteMediaStream() {
         if (this._peerConnection.getSenders) {
-            return super.remoteMediaStream;
+            return (super.getRemoteMediaStream());
         }
         return this._peerConnection.getRemoteStreams()[0]
     }
@@ -66,6 +66,9 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         
     }
     setLocalMediaStream(stream) {
+        if (this._peerConnection.getSenders) {
+            return (super.setLocalMediaStream());
+        }
         this.logger.debug("SessionDescriptionHandler.setLocalMediaStream");
         if (!this._peerConnection) {
             throw new Error("Peer connection undefined.");
@@ -260,7 +263,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         }
         
     }
-
     updateDirection(options) {
         if (this._peerConnection === undefined) {
             return Promise.reject(new Error("Peer connection closed."));
@@ -440,7 +442,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         }
         return Promise.resolve();
     }
-
     static fixup_options(options) {
         const defaults = {
             constraints: {
@@ -455,6 +456,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
             },
             maxBitrateAudio: undefined,
             maxBitrateVideo: undefined,
+
         };
         let opts = {...defaults, ...options};
         if (opts.receiveAudio === undefined) {

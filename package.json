@@ -9,13 +9,13 @@
   "devDependencies": {
     "eslint": "^7.20.0",
     "eslint-plugin-react": "^7.22.0",
-    "webpack": "^5.70.0",
-    "webpack-cli": "^4.9.2"
+    "webpack": "^4.44.2",
+    "webpack-cli": "^3.3.12"
   },
   "scripts": {
     "build-package": "mkdir -p dist; cd dist; npm pack ..",
-    "build-reg-bundle": "webpack --progress --config build/webpack.config.cjs --env buildType=reg",
-    "build-min-bundle": "webpack --progress --config build/webpack.config.cjs --env buildType=min",
+    "build-reg-bundle": "webpack --progress --config build/webpack.config.cjs --env.buildType=reg",
+    "build-min-bundle": "webpack --progress --config build/webpack.config.cjs --env.buildType=min",
     "build-bundles": "npm run build-reg-bundle && npm run build-min-bundle",
     "copy-dist-file": "cp dist/AculabCloudCaller.js dist/AculabCloudCaller-$npm_package_version.js",
     "copy-dist-file-min": "cp dist/AculabCloudCaller.min.js dist/AculabCloudCaller-$npm_package_version.min.js",
