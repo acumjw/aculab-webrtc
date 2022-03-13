@@ -52,11 +52,9 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
     }
     get remoteMediaStream() {
         if (this._peerConnection.getSenders) {
-            return (super.getRemoteMediaStream());
+            return super.remoteMediaStream;
         }
-        streams = this._peerConnection.getRemoteStreams()
-        //alert("STREAMS: " +JSON.stringify(streams))
-        return streams[0]
+        return this._peerConnection.getRemoteStreams()
     }
     setRemoteTrack(track) {
         if (this._peerConnection.getSenders) {
@@ -99,12 +97,11 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
      * @param {String} tones A string containing DTMF digits
      * @param {Object} [options] Options object to be used by sendDtmf
      * @returns {boolean} true if DTMF send is successful, false otherwise
-     */
+    */
     sendDtmf(indtmf, options) {
         if (this._peerConnection.getSenders) {
             return ( super.sendDtmf(indtmf, options));
         }
-        
         
         this.logger.debug('AculabCloudCall sendDtmf(' + indtmf + ')');
         if (indtmf.match(/[^0-9A-Da-d#*]/) != null) {
@@ -265,6 +262,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         }
         
     }
+    
     updateDirection(options) {
         if (this._peerConnection === undefined) {
             return Promise.reject(new Error("Peer connection closed."));
@@ -444,11 +442,13 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         }
         return Promise.resolve();
     }
+
     static fixup_options(options) {
         const defaults = {
         constraints: {
         audio: true,
         video: false
+        
         },
         receiveAudio: undefined,
         receiveVideo: undefined,
@@ -458,7 +458,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         },
         maxBitrateAudio: undefined,
         maxBitrateVideo: undefined,
-            
         };
         let opts = {...defaults, ...options};
         if (opts.receiveAudio === undefined) {
@@ -527,7 +526,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         }
         return {"video": vid_dir, "audio": aud_dir};
     }
-    
+
     // Creates an RTCSessionDescriptionInit from an RTCSessionDescription
     createRTCSessionDescriptionInit(RTCSessionDescription) {
         return {
@@ -569,5 +568,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         }
         return peerConnectionOptions;
     }
-    
+
 }
+
+

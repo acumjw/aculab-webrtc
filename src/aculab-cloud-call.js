@@ -1,5 +1,4 @@
 import { SessionState } from "sip.js";
-import React, { Component } from 'react';
 
 export class AculabCloudCall {
     /**
@@ -256,12 +255,23 @@ export class AculabCloudCall {
                 this.client.console_log('AculabCloudCall calling onConnected' + ` ice: ${this._ice_connected}`);
                 try {
                     
-                    
+                    //Need to do somesetup of mute callbacks for remiote stream
                     var track = null;
                     //get video track
-                    
+                    var this_stream = null
                     if (this._remote_stream) {
-                        track = this._remote_stream.getVideoTracks()[0];
+                       
+                        //There is some odity with react native where it does not like to returned object in this case to not be an array...
+                        //But only react-native, otherwise it follows the protocol.
+                        if (Array.isArray(this._remote_stream))
+                        {
+                            this_stream = this._remote_stream[0];
+                        }
+                        else
+                        {
+                            this_stream = this._remote_stream;
+                        }
+                        track = this_stream.getVideoTracks()[0];
                     }
                     //If we have a video track set callbacks
                     if(track){
@@ -327,6 +337,7 @@ export class AculabCloudCall {
         },
         oniceconnectionstatechange: () => {
             this._remote_stream = sdh.remoteMediaStream;
+            
             var icestate = sdh.peerConnection.iceConnectionState;
             if (icestate == 'connected' || icestate == 'completed') {
                 
