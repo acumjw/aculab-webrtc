@@ -1,6 +1,6 @@
 {
   "name": "aculab-webrtc",
-  "version": "3.0.10",
+  "version": "3.0.18",
   "main": "src/index.js",
   "type": "module",
   "dependencies": {
