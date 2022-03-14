@@ -23,10 +23,10 @@ export class AculabCloudCall {
          * because of above.  There are 2 callbacks for the remote side to do something when it detects the other side has
          * muted.
          */
-        this.onLocalVideoMuteCB = null;
-        this.onLocalVideoUnMuteCB = null;
-        this.onRemoteVideoMuteCB = null;
-        this.onRemoteVideoUnMuteCB = null;
+        this.onLocalVideoMute = null;
+        this.onLocalVideoUnmute = null;
+        this.onRemoteVideoMute = null;
+        this.onRemoteVideoUnmute = null;
         
         this.onConnecting = null;
         this.onMedia = null;
@@ -34,34 +34,71 @@ export class AculabCloudCall {
         this.onDisconnect = null;
         
     }
-    
-    
+
+    // add setters for backwards compatibility
+    set onLocalVideoMuteCB(func) {
+        this.onLocalVideoMute = func;
+    }
+
+    set onLocalVideoUnMuteCB(func) {
+        this.onLocalVideoUnmute = func;
+    }
+
+    set onRemoteVideoMuteCB(func) {
+        this.onRemoteVideoMute = func;
+    }
+
+    set onRemoteVideoUnMuteCB(func) {
+        this.onRemoteVideoUnmute = func;
+    }
+    //
+
     //Functions to call the callbacks with logging around it
     _onLocalVideoMute(obj){
-        this.client.console_log(`_onLocalVideoMute`);
-        if (this.onLocalVideoMuteCB != null){
-            this.onLocalVideoMuteCB(obj);
+        if (this.onLocalVideoMute != null){
+            this.client.console_log('AculabCloudCall calling onLocalVideoMute');
+            try {
+                this.onLocalVideoMute(obj);
+            }
+            catch(err) {
+                this.client.console_error('AculabCloudCall: Exception calling onLocalVideoMute: ' + err.message);
+            }
         }
     }
     
-    _onLocalVideoUnMute(obj){
-        this.client.console_log(`_onLocalVideoUnMute`);
-        if (this.onLocalVideoUnMuteCB != null){
-            this.onLocalVideoUnMuteCB(obj);
+    _onLocalVideoUnmute(obj){
+        if (this.onLocalVideoUnmute != null){
+            this.client.console_log('AculabCloudCall calling onLocalVideoUnmute');
+            try {
+                this.onLocalVideoUnmute(obj);
+            }
+            catch(err) {
+                this.client.console_error('AculabCloudCall: Exception calling onLocalVideoUnmute: ' + err.message);
+            }
         }
     }
     
     _onRemoteVideoMute(obj){
-        this.client.console_log(`_onRemoteVideoMute`);
-        if (this.onRemoteVideoMuteCB != null){
-            this.onRemoteVideoMuteCB(obj);
+        if (this.onRemoteVideoMute != null){
+            this.client.console_log('AculabCloudCall calling onRemoteVideoMute');
+            try {
+                this.onRemoteVideoMute(obj);
+            }
+            catch(err) {
+                this.client.console_error('AculabCloudCall: Exception calling onRemoteVideoMute: ' + err.message);
+            }
         }
     }
     
-    _onRemoteVideoUnMute(obj){
-        this.client.console_log(`_onRemoteVideoUnMute`);
-        if (this.onRemoteVideoUnMuteCB != null){
-            this.onRemoteVideoUnMuteCB(obj);
+    _onRemoteVideoUnmute(obj){
+        if (this.onRemoteVideoUnMute != null){
+            this.client.console_log('AculabCloudCall calling onRemoteVideoUnmute');
+            try {
+                this.onRemoteVideoUnmute(obj);
+            }
+            catch(err) {
+                this.client.console_error('AculabCloudCall: Exception calling onRemoteVideoUnmute: ' + err.message);
+            }
         }
     }
     
@@ -171,45 +208,35 @@ export class AculabCloudCall {
             var pc = this._session.sessionDescriptionHandler.peerConnection;
             if (pc.getSenders)
             {
-                pc.getSenders().forEach(function (sender) {
+                pc.getSenders().forEach(sender => {
                     if (sender.track) {
                         if (sender.track.kind == "audio") {
                             sender.track.enabled = !mic;
                         } else if (sender.track.kind == "video") {
                             sender.track.enabled = !camera;
+                            var stream = this._session.sessionDescriptionHandler.localMediaStream;
+                            if (sender.track.enabled) {
+                                this._onLocalVideoUnmute({'call': this, 'stream': stream, 'track': sender.track});
+                            } else {
+                                this._onLocalVideoMute({'call': this, 'stream': stream, 'track': sender.track});
+                            }
                         }
                     }
                 });
-            }
-            else
-            {
-                
-                all_streams = pc.getLocalStreams()
-                var stream = 0;
-                for (stream in all_streams)
-                {
-                    
-                    all_streams[stream].getAudioTracks().forEach(function (track) {
+            } else {
+                pc.getLocalStreams().forEach(stream => {
+                    stream.getAudioTracks().forEach(track => {
                         track.enabled = !mic;
                     });
-                    
-                    
-                    // can only ever have one video track per stream as of now,
-                    // may need to handle differently later
-                    var track = all_streams[stream].getVideoTracks()[0];
-                    track.enabled = !camera;
-                    if(track.enabled)
-                    {
-                        this._onLocalVideoUnMute();
-                    }
-                    else
-                    {
-                        this._onLocalVideoMute();
-                    }
-                    
-                }
-                
-                
+                    stream.getVideoTracks().forEach(track => {
+                        track.enabled = !camera;
+                        if (track.enabled) {
+                            this._onLocalVideoUnmute({'call': this, 'stream': stream, 'track': track});
+                        } else {
+                            this._onLocalVideoMute({'call': this, 'stream': stream, 'track': track});
+                        }
+                    });
+                });
             }
         }
     }
@@ -236,13 +263,30 @@ export class AculabCloudCall {
     }
     _check_notify_media() {
         if (this._remote_stream != this._notified_remote_stream && this._ice_connected) {
-            this.client.console_log('AculabCloudCall calling onMedia');
             this._notified_remote_stream = this._remote_stream;
+            try {
+                //Need to do some setup of mute callbacks for remote stream
+                if (this._remote_stream) {
+                    var this_stream = this._remote_stream;
+                    this_stream.getVideoTracks().forEach(track => {;
+                        track.onunmute = (ev) => {
+                            this._onRemoteVideoUnmute({'call': this, 'stream': this_stream, 'track': track});
+                        }
+                        track.onmute = (ev) => {
+                            this._onRemoteVideoMute({'call': this, 'stream': this_stream, 'track': track});
+                        }
+                    });
+                }
+            }
+            catch(e) {
+                this.client.console_error('AculabCloudCall adding video track mute handlers caused exception: ' + e.message);
+            }
+            this.client.console_log('AculabCloudCall calling onMedia');
             try {
                 this.onMedia({'call': this, 'stream': this._notified_remote_stream});
             }
             catch(e) {
-                this.client.console_error('AculabCloudCall onMedia caused exception:' + e.message);
+                this.client.console_error('AculabCloudCall onMedia caused exception: ' + e.message);
             }
         }
     }
@@ -254,31 +298,6 @@ export class AculabCloudCall {
             if (this.onConnected) {
                 this.client.console_log('AculabCloudCall calling onConnected' + ` ice: ${this._ice_connected}`);
                 try {
-                    
-                    //Need to do somesetup of mute callbacks for remiote stream
-                    var track = null;
-                    //get video track
-                    var this_stream = null
-                    if (this._remote_stream) {
-                       
-                        //There is some odity with react native where it does not like to returned object in this case to not be an array...
-                        //But only react-native, otherwise it follows the protocol.
-                        if (Array.isArray(this._remote_stream))
-                        {
-                            this_stream = this._remote_stream[0];
-                        }
-                        else
-                        {
-                            this_stream = this._remote_stream;
-                        }
-                        track = this_stream.getVideoTracks()[0];
-                    }
-                    //If we have a video track set callbacks
-                    if(track){
-                        track.onunmute = (function(obj) { this._onRemoteVideoUnMute(obj); }).bind(this);
-                        track.onmute = (function(obj) { this._onRemoteVideoMute(obj); }).bind(this);
-                    }
-                    
                     this.onConnected({'call': this});
                 }
                 catch(e) {
@@ -325,18 +344,18 @@ export class AculabCloudCall {
         ontrack: (ev) => {
             
             if (ev.track) {
-                this._remote_stream = sdh.remoteMediaStream;
+                this._remote_stream = sdh.firstRemoteMediaStream;
                 this._check_notify_media();
             }
         },
         onaddstream: (ev) => {
             
-            this._remote_stream = sdh.remoteMediaStream;
+            this._remote_stream = sdh.firstRemoteMediaStream;
             this._check_notify_media();
             
         },
         oniceconnectionstatechange: () => {
-            this._remote_stream = sdh.remoteMediaStream;
+            this._remote_stream = sdh.firstRemoteMediaStream;
             
             var icestate = sdh.peerConnection.iceConnectionState;
             if (icestate == 'connected' || icestate == 'completed') {
