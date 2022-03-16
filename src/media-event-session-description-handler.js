@@ -51,18 +51,10 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         this.options = {};
     }
     get remoteMediaStream() {
-        // for browsers this just returns a single stream
         if (this._peerConnection.getSenders) {
             return super.remoteMediaStream;
         }
-        // but react native returns an array of streams
-        return this._peerConnection.getRemoteStreams()
-    }
-    get firstRemoteMediaStream() {
-        // return a single stream for both browsers and react native
-        if (this._peerConnection.getSenders) {
-            return super.remoteMediaStream;
-        }
+        // return the first remote stream on react-native
         return this._peerConnection.getRemoteStreams()[0]
     }
     setRemoteTrack(track) {

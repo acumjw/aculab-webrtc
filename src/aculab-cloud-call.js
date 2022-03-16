@@ -344,18 +344,18 @@ export class AculabCloudCall {
         ontrack: (ev) => {
             
             if (ev.track) {
-                this._remote_stream = sdh.firstRemoteMediaStream;
+                this._remote_stream = sdh.remoteMediaStream;
                 this._check_notify_media();
             }
         },
         onaddstream: (ev) => {
             
-            this._remote_stream = sdh.firstRemoteMediaStream;
+            this._remote_stream = sdh.remoteMediaStream;
             this._check_notify_media();
             
         },
         oniceconnectionstatechange: () => {
-            this._remote_stream = sdh.firstRemoteMediaStream;
+            this._remote_stream = sdh.remoteMediaStream;
             
             var icestate = sdh.peerConnection.iceConnectionState;
             if (icestate == 'connected' || icestate == 'completed') {
