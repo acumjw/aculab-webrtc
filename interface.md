@@ -179,8 +179,8 @@ This throws a string exception if there is an invalid digit in the string. There
 
 Disconnects any existing call. This can be called at any time.
 
-AculabCloudClient callback properties
--------------------------------------
+AculabCloudCall callback properties
+-----------------------------------
 
 Each of these callback properties must be either `null` or a function. The function will be passed a single object parameter. Additional information may be included as properties of that object. All such properties are detailed below.
 
