@@ -91,7 +91,7 @@ export class AculabCloudCall {
     }
     
     _onRemoteVideoUnmute(obj){
-        if (this.onRemoteVideoUnMute != null){
+        if (this.onRemoteVideoUnmute != null){
             this.client.console_log('AculabCloudCall calling onRemoteVideoUnmute');
             try {
                 this.onRemoteVideoUnmute(obj);
