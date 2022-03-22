@@ -267,13 +267,14 @@ export class AculabCloudCall {
             try {
                 //Need to do some setup of mute callbacks for remote stream
                 if (this._remote_stream) {
+                    var this_call = this;
                     var this_stream = this._remote_stream;
                     this_stream.getVideoTracks().forEach(track => {;
                         track.onunmute = (ev) => {
-                            this._onRemoteVideoUnmute({'call': this, 'stream': this_stream, 'track': track});
+                            this_call._onRemoteVideoUnmute({'call': this_call, 'stream': this_stream, 'track': track});
                         }
                         track.onmute = (ev) => {
-                            this._onRemoteVideoMute({'call': this, 'stream': this_stream, 'track': track});
+                            this_call._onRemoteVideoMute({'call': this_call, 'stream': this_stream, 'track': track});
                         }
                     });
                 }
