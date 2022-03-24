@@ -57,6 +57,7 @@
 		// reset the player size
 		player.style.width = "320px";
 		player.style.height = "240px";
+		player.parentElement.classList.remove("muted");
 		slot_obj.playing_ringing = false;
 		slot_obj.gotremotestream = false;
 		if (obj !== null) {
@@ -316,10 +317,10 @@
 			slot_obj.call.onConnecting = connecting.bind(null, slot);
 			slot_obj.call.onConnected = connected.bind(null, slot);
 			slot_obj.call.onError = handle_error.bind(null, slot);
-			slot_obj.call.onLocalVideoMute = logVideoMuteUnmute.bind(null, "local", "mute");
-			slot_obj.call.onLocalVideoUnmute = logVideoMuteUnmute.bind(null, "local", "unmute");
-			slot_obj.call.onRemoteVideoMute = logVideoMuteUnmute.bind(null, "remote", "mute");
-			slot_obj.call.onRemoteVideoUnmute = logVideoMuteUnmute.bind(null, "remote", "unmute");
+			slot_obj.call.onLocalVideoMute = handleVideoMuteUnmute.bind(null, slot, "local", "mute");
+			slot_obj.call.onLocalVideoUnmute = handleVideoMuteUnmute.bind(null, slot, "local", "unmute");
+			slot_obj.call.onRemoteVideoMute = handleVideoMuteUnmute.bind(null, slot, "remote", "mute");
+			slot_obj.call.onRemoteVideoUnmute = handleVideoMuteUnmute.bind(null, slot, "remote", "unmute");
 			slot_obj.inbound = false;
 			document.getElementById(slot + "-remote").value = type + ": " + targ;
 			document.getElementById(slot + "-target-type").disabled = true;
@@ -349,8 +350,17 @@
 			slot_obj.call.sendDtmf(dtmf);
 		}
 	}
-	function logVideoMuteUnmute(loc, change, obj) {
-		console.log(loc + " video " + change + " [call: " + obj.call + ", stream: " + obj.stream + ", track: " + obj.track);
+	function handleVideoMuteUnmute(slot, loc, change, obj) {
+		console.log("slot " + slot + ": " + loc + " video " + change + " [call: " + obj.call + ", stream: " + obj.stream + ", track: " + obj.track);
+		if (loc == "remote") {
+			var slot_obj = slots.get(slot);
+			if (change == "mute") {
+				slot_obj.player.parentElement.classList.add("muted");
+			}
+			if (change == "unmute") {
+				slot_obj.player.parentElement.classList.remove("muted");
+			}
+		}
 	}
 	function new_call(obj) {
 		var slot = '';
@@ -389,10 +399,10 @@
 		slot_obj.call.onConnecting = connecting.bind(null, slot);
 		slot_obj.call.onConnected = connected.bind(null, slot);
 		slot_obj.call.onError = handle_error.bind(null, slot);
-		slot_obj.call.onLocalVideoMute = logVideoMuteUnmute.bind(null, "local", "mute");
-		slot_obj.call.onLocalVideoUnmute = logVideoMuteUnmute.bind(null, "local", "unmute");
-		slot_obj.call.onRemoteVideoMute = logVideoMuteUnmute.bind(null, "remote", "mute");
-		slot_obj.call.onRemoteVideoUnmute = logVideoMuteUnmute.bind(null, "remote", "unmute");
+		slot_obj.call.onLocalVideoMute = handleVideoMuteUnmute.bind(null, slot, "local", "mute");
+		slot_obj.call.onLocalVideoUnmute = handleVideoMuteUnmute.bind(null, slot, "local", "unmute");
+		slot_obj.call.onRemoteVideoMute = handleVideoMuteUnmute.bind(null, slot, "remote", "mute");
+		slot_obj.call.onRemoteVideoUnmute = handleVideoMuteUnmute.bind(null, slot, "remote", "unmute");
 
 		var player = slot_obj.player;
 		if (player.canPlayType('audio/wav')) {
@@ -617,6 +627,23 @@
 		width: 320px;
 		height: 240px;
 		border: 1px solid black;
+	}
+	td.muted {
+		position: relative;
+	}
+	td.muted:before {
+		position: absolute;
+		top: 0;
+		left: 0;
+		bottom: 0;
+		right: 0;
+		content: 'video paused';
+		color: white;
+		background: rgba(0, 0, 0, 0.8);
+		/* Center vertically and horizontally */
+		display: flex;
+		justify-content: center;
+		align-items: center;
 	}
 	/* The switch - the box around the slider */
 	.switch {
