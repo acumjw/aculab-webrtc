@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Aculab Cloud WebRTC demo</title>
+	<link rel="icon" type="image/gif" href="images/favicon.gif" />
+	<script type='application/javascript' src='https://webrtc-0-2-0.aculabcloud.net/js/3/AculabCloudCaller.js'></script>
+	<script type='application/javascript' src='js/webrtc_demo.js'></script>
+</head>
+<body onload="get_webrtc_demo_config()">
+    <h2>Aculab Cloud WebRTC demo</h2>
+	<table>
+		<tr>
+			<td>Step 1: Enter a Client ID name and click Create to register with WebRTC</td>
+			<td>Step 2: (optional) Click "Generate token" then click "Enable" to enable incoming calls</td>
+		</tr>
+		<tr>
+			<td style="padding:10px">
+				<table><tr><td>
+					Cloud:
+					<input id="cloud" size=10 value="" disabled=true>
+					</td></tr><tr><td>Client ID:
+					<input id="clientId" size=40 value="username1">
+					</td></tr><tr><td>Log level:
+					<select id="logLevel">
+						<option>0</option>
+						<option>1</option>
+						<option>2</option>
+						<option>3</option>
+						<option>4</option>
+						<option>5</option>
+						<option>6</option>
+						<option>7</option>
+						<option>8</option>
+					</select>
+					</td></tr><tr><td>
+					<button id="create_button" type="button" onclick="make_client()">Create</button>
+					<button id="del_button" type="button" onclick="dtor_client()" disabled=true>Destroy</button>
+				</td></tr><tr><td>
+					<input id="con_state" size=60 value="Not conntected" disabled=true>
+				</td></tr></table>
+			</td>
+			<td style="padding:10px">
+				<table>
+					<tr><td>
+					<button id="gen_token_button" type="button" onclick="get_webrtc_token()">Generate token</button>
+					</td></tr>
+					<tr><td>
+					Token TTL (seconds):
+					<input id="ttl" size=10 value="" disabled=true>
+					</td>
+					</tr>
+					</td></tr>
+					<tr><td>
+					Client token:
+					<input id="token" size=40 value="" disabled=true>
+					</td></tr><tr><td>
+					<button id="reg_button" type="button" onclick="register()" disabled=true>Enable</button>
+					<button id="unreg_button" type="button" onclick="unregister()" disabled=true>Disable</button>
+					</td></tr><tr><td>
+					<input id="reg_state" size=60 value="Not registered" disabled=true>
+				</td></tr></table>
+			</td>
+		</tr>
+		<tr><td colspan=2>&nbsp;</td></tr>
+		<tr>
+			<td style="padding:10px">
+				<audio id="a-player"></audio>
+				<table>
+					<tr>
+					<td>Step 3: Call a Client ID or service, or accept an incoming call</td>
+					</tr>
+					<tr><td>
+					Client ID to call:
+					<input id="a-remote-user-id" size=40 value="username2">
+					<button id="a-start_video_button" type="button" onclick="start_call('a', 'video', 'client')" disabled=true>Video call</button>
+					<button id="a-start_voice_button" type="button" onclick="start_call('a', 'voice', 'client')" disabled=true>Voice call</button>
+					</td></tr><tr><td>
+					Service to call:
+					<input id="a-remote-service" size=40 value="webrtcdemo">
+					<button id="a-start_service_voice_button" type="button" onclick="start_call('a', 'voice', 'service')" disabled=true>Voice call</button>
+					</td></tr><tr><td>
+					</td></tr><tr><td>
+					Remote:
+					<input id="a-remote" size=40 value="" disabled=true>
+					</td></tr><tr><td>
+					<input id="a-state" size=60 value="Idle" disabled=true>
+					</td></tr><tr><td>
+					<button id="a-accept_video_button" type="button" onclick="start_call('a', 'video', 'accept')" disabled=true>Accept video</button>
+					<button id="a-accept_voice_button" type="button" onclick="start_call('a', 'voice', 'accept')" disabled=true>Accept voice</button>
+					<button id="a-stop_button" type="button" onclick="stop_call('a')" disabled=true>Disconnect</button>
+					&nbsp;Mute: 
+					<select id="a-mute" onchange="mute_call('a')" disabled=true>
+						<option>none</option>
+						<option>mic</option>
+						<option>speaker</option>
+						<option>camera</option>
+						<option>video player</option>
+						<option>audio</option>
+						<option>video</option>
+						<option>all</option>
+					</select>
+					<table id="a-dtmf-buttons">
+						<tr>
+							<td><button id="dtmf1" type="button" disabled=true onclick="send_dtmf('a','1')">1</button></td>
+							<td><button id="dtmf2" type="button" disabled=true onclick="send_dtmf('a','2')">2</button></td>
+							<td><button id="dtmf3" type="button" disabled=true onclick="send_dtmf('a','3')">3</button></td>
+						</tr>
+						<tr>
+							<td><button id="dtmf4" type="button" disabled=true onclick="send_dtmf('a','4')">4</button></td>
+							<td><button id="dtmf5" type="button" disabled=true onclick="send_dtmf('a','5')">5</button></td>
+							<td><button id="dtmf6" type="button" disabled=true onclick="send_dtmf('a','6')">6</button></td>
+						</tr>
+						<tr>
+							<td><button id="dtmf7" type="button" disabled=true onclick="send_dtmf('a','7')">7</button></td>
+							<td><button id="dtmf8" type="button" disabled=true onclick="send_dtmf('a','8')">8</button></td>
+							<td><button id="dtmf9" type="button" disabled=true onclick="send_dtmf('a','9')">9</button></td>
+						</tr>
+						<tr>
+							<td><button id="dtmf10" type="button" disabled=true onclick="send_dtmf('a','*')">*</button></td>
+							<td><button id="dtmf11" type="button" disabled=true onclick="send_dtmf('a','0')">0</button></td>
+							<td><button id="dtmf12" type="button" disabled=true onclick="send_dtmf('a','#')">#</button></td>
+						</tr>
+					</table>
+				</td></tr></table>
+			</td>
+			<td style="padding:10px">
+			</td>
+		</tr>
+		<tr>
+			<td style="padding:10px">
+				<video id="a-local-video" muted></audio>
+			</td>
+			<td style="padding:10px">
+				<video id="a-remote-video"></audio>
+			</td>
+		</tr>
+	</table>
+</body>
+</html>
