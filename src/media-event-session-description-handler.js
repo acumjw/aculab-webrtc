@@ -49,6 +49,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
             RTCPeerConnection
         };
         this.options = {};
+        this.usingOptionsLocalStream = false;
     }
     get remoteMediaStream() {
         if (this._peerConnection.getSenders) {
@@ -172,8 +173,14 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
     }
     async getLocalMediaStream(options) {
         try {
-            //this._localMediaStream =
-            await super.getLocalMediaStream(options);
+            if (options.localStream !== undefined) {
+                if (!this.usingOptionsLocalStream) {
+                    this.setLocalMediaStream(options.localStream);
+                    this.usingOptionsLocalStream = true;
+                }
+            } else {
+                await super.getLocalMediaStream(options);
+            }
             if (this.onUserMedia && this.notified_stream != this._localMediaStream) {
                 this.notified_stream = this._localMediaStream;
                 this.onUserMedia(this._localMediaStream);
@@ -456,8 +463,16 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
             },
             maxBitrateAudio: undefined,
             maxBitrateVideo: undefined,
+            localStream: undefined,
         };
         let opts = {...defaults, ...options};
+        if (opts.localStream) {
+            // clone the passed in stream, so it doesn't change under us
+            opts.localStream = opts.localStream.clone();
+            // with a local stream, the constraints are only used to set SDP direction
+            opts.constraints.audio = opts.localStream.getAudioTracks().length > 0;
+            opts.constraints.video = opts.localStream.getVideoTracks().length > 0;
+        }
         if (opts.receiveAudio === undefined) {
             opts.receiveAudio = (opts.constraints.audio != false);
         }

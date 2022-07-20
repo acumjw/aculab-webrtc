@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Whisper demo - customer</title>
+	<link rel="icon" type="image/gif" href="/images/favicon.gif" />
+	<script type='application/javascript' src='../../dist/AculabCloudCaller.js'></script>
+	<script type='application/javascript' src='../generate_token.js'></script>
+	<script type='application/javascript'>
+	var acc = null;
+	var inbound_enabled = false;
+	var call = null;
+	var player = null;
+	var cloudid = ''
+	var webrtcid = ''
+	var role = ''
+	var token = '';
+	var playing_ringing = false;
+
+	function update_call_state(new_state) {
+		let state_box = document.getElementById("call-state");
+		state_box.value = new_state;
+		let create_button = document.getElementById("create_button");
+		create_button.disabled = (new_state != "disconnected");
+		let del_button = document.getElementById("del_button");
+		del_button.disabled = (new_state != "connected");
+	}
+
+
+	function gotmedia(obj) {
+		player.pause();
+		player.loop = '';
+		player.src = '';
+		player.srcObject = null;
+		player.type = '';
+		playing_ringing = false;
+		player.load();
+		if (obj !== null) {
+			player.srcObject = obj.stream;
+			player.load();
+			var p = player.play();
+			if (p !== undefined) {
+				p.catch(error => {});
+			}
+		}
+	}
+	function disconnect(obj) {
+		update_call_state("disconnected");
+		gotmedia(null);
+		call = null;
+	}
+	function ringing(obj) {
+		update_call_state("ringing");
+		if (!playing_ringing) {
+			if (player.canPlayType('audio/wav')) {
+				player.loop = 'loop';
+				player.src = '../../test/media/ringback.wav';
+				player.type="audio/wav";
+				player.load();
+				var p = player.play();
+				if (p !== undefined) {
+					p.catch(error => {});
+				}
+			} else {
+				console.log("browser can't play audio/wav, so no ringing will be heard");
+			}
+			playing_ringing = true;
+		}
+	}
+	function connecting() {
+		update_call_state("connecting");
+	}
+	function connected() {
+		update_call_state("connected");
+	}
+	function start_client() {
+		if (acc) {
+			return;
+		}
+		if (AculabCloudClient.isSupported()) {
+			try {
+				acc = new AculabCloudClient(cloudid, webrtcid, role, 8);
+			}
+			catch(err) {
+				acc = null;
+				alert("Error: " + err)
+			}
+		}
+	}
+	function make_client() {
+		cloudid = document.getElementById("cloud").value;
+		webrtcid = document.getElementById("webRtcAccessKey").value;
+		role = document.getElementById("clientId").value;
+		player = document.getElementById("player");
+		player.load();
+
+		start_client();
+		if (!acc) {
+			return;
+		}
+		token = document.getElementById("token").value;
+		call = acc.callClient("whisper_agent", token);
+		call.onRinging = ringing;
+		call.onConnected = connected;
+		call.onConnecting = connecting;
+		call.onDisconnect = disconnect;
+		call.onMedia = gotmedia;
+	}
+	function dtor_client() {
+		if (call) {
+			call.disconnect();
+		}
+		acc = null; // does this need to be delayed until calls have cleared?
+	}
+	</script>
+</head>
+<body>
+	<style>
+	/* The switch - the box around the slider */
+	.switch {
+		position: relative;
+		display: inline-block;
+		width: 40px;
+		height: 24px;
+	}
+
+	/* Hide default HTML checkbox */
+	.switch input {
+		opacity: 0;
+		width: 0;
+		height: 0;
+	}
+
+	/* The slider */
+	.slider {
+		position: absolute;
+		cursor: pointer;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-color: #ccc;
+		-webkit-transition: .4s;
+		transition: .4s;
+	}
+
+	.slider:before {
+		position: absolute;
+		content: "";
+		height: 16px;
+		width: 16px;
+		left: 4px;
+		bottom: 4px;
+		background-color: white;
+		-webkit-transition: .4s;
+		transition: .4s;
+	}
+
+	input:checked + .slider {
+		background-color: #2196F3;
+	}
+
+	input:checked:disabled + .slider {
+		background-color: #9ecdef;
+	}
+
+	input:focus + .slider {
+		box-shadow: 0 0 1px #2196F3;
+	}
+
+	input:checked + .slider:before {
+		-webkit-transform: translateX(16px);
+		-ms-transform: translateX(16px);
+		transform: translateX(16px);
+	}
+
+	/* Rounded sliders */
+	.slider.round {
+		border-radius: 24px;
+	}
+
+	.slider.round:before {
+		border-radius: 50%;
+	}
+	</style>
+    <h2>Whisper demo - customer</h2>
+	<table>
+		<tr>
+			<td style="padding:10px">
+				<table><tr><td>
+					Cloud:
+					<select id="cloud">
+						<option value="0-0-0">0-0-0</option>
+						<option value="0-2-0">0-2-0</option>
+						<option value="1-2-0" selected="selected">1-2-0</option>
+						<option value="2-2-0">2-2-0</option>
+						<option value="4-0-1">4-0-1</option>
+					</select>
+					</td></tr><tr><td>WebRTC Access Key:
+					<input id="webRtcAccessKey" size=40 value="">
+					</td></tr><tr><td>Client ID:
+					<input id="clientId" size=40 value="whisper_customer" disabled>
+					</td></tr><tr><td>Log level:
+					<select id="logLevel">
+						<option>0</option>
+						<option>1</option>
+						<option>2</option>
+						<option>3</option>
+						<option>4</option>
+						<option>5</option>
+						<option>6</option>
+						<option>7</option>
+						<option selected="selected">8</option>
+					</select>
+					</td></tr>
+					<tr><td>
+					Token: <input id="token" size=40>&nbsp;<button id="getTokenButton">Get a token</button>
+					<script>
+					var cloudObj = document.getElementById("cloud");
+					var clientObj = document.getElementById("clientId");
+					var token = document.getElementById("token");
+					var button = document.getElementById("getTokenButton");
+					var settings = {
+						ttl_fixed: true,
+						incoming: false,
+						incoming_fixed: true,
+						call_client: "whisper_agent",
+						call_client_fixed: true
+					}
+					setUpGetToken(button, cloudObj, clientObj, token, settings);
+					</script>
+					</td></tr>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td style="padding:10px">
+				<button id="create_button" type="button" onclick="make_client()">Call agent</button>
+				<button id="del_button" type="button" onclick="dtor_client()" disabled>Hang up</button>
+				<audio id="player"></audio>
+			</td>
+		</tr>
+		<tr>
+			<td style="padding:10px">
+				<div>Call state: <input id="call-state" size=40 value="disconnected" disabled></div>
+			</td>
+		</tr>
+	</table>
+</body>
+</html>

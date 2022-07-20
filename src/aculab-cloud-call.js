@@ -13,6 +13,7 @@ export class AculabCloudCall {
         this._notified_remote_stream = null;
         this._ice_connected = false;
         this._termination_reason = '';
+        this._sdh_options = undefined;
         
         /*
          * In order to deal with the fact that react-native-webrtc implemented muted video by stopping the stream
@@ -250,6 +251,11 @@ export class AculabCloudCall {
         var cause = this._termination_reason || "NORMAL";
         this.client.console_log('term: ' + cause);
         this._remote_stream = null;
+        if (this._sdh_options && this._sdh_options.localStream && this._sdh_options.localStream.getTracks) {
+            this._sdh_options.localStream.getTracks().forEach((track) => {
+                track.stop();
+            });
+        }
         if (this.client._removeCall(this)) { // was removed, so call user callback
             if (this.onDisconnect) {
                 try {
