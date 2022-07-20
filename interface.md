@@ -124,17 +124,21 @@ This object is used to modify the default behaviour of the client when making or
 AculabCloudCallOptions object properties
 ----------------------------------------
 
+### localStream
+
+A MediaStream object that is the local media to send to calls. If undefined, a media stream is obtained using getUserMedia() and the specified constraints.
+
 ### constraints
 
-A MediaStreamConstraints object. The default is `"{ audio: true, video: false }"`.
+A MediaStreamConstraints object. The default is `"{ audio: true, video: false }"`. This is unused if a localStream has been given.
 
 ### receiveAudio
 
-Can be true, false or undefined. When undefined the client will receive audio if the constraints require an audio track and refuse to receive audio otherwise. The default is undefined.
+Can be true, false or undefined. When undefined the client will receive audio if the localStream has an audio track and refuse to receive audio otherwise. The default is undefined.
 
 ### receiveVideo
 
-Can be true, false or undefined. When undefined the client will receive video if the constraints require an video track and refuse to receive video otherwise. The default is undefined.
+Can be true, false or undefined. When undefined the client will receive video if the localStream has a video track and refuse to receive video otherwise. The default is undefined.
 
 ### codecs
 

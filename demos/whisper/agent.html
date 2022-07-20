@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Whisper demo - agent</title>
+	<link rel="icon" type="image/gif" href="/images/favicon.gif" />
+	<script type='application/javascript' src='../../dist/AculabCloudCaller.js'></script>
+	<script type='application/javascript' src='../generate_token.js'></script>
+	<script type='application/javascript'>
+	var acc = null;
+	var inbound_enabled = false;
+	var user_call = null;
+	var user_player = null;
+	var manager_call = null;
+	var manager_player = null;
+	var cloudid = ''
+	var webrtcid = ''
+	var role = ''
+	var token = '';
+	var local_stream = null;
+	var microphone;
+	var callerAudio;
+	var audioContext;
+	var mixedOutput;
+
+	function update_call_state(call_type, new_state) {
+		let state_box = document.getElementById(call_type + "-call-state");
+		state_box.value = new_state;
+		if (call_type == "user") {
+			let answer_button = document.getElementById("answer_button");
+			answer_button.disabled = (new_state != "incoming");
+			let hangup_button = document.getElementById("hangup_button");
+			hangup_button.disabled = (new_state != "connected");
+		}
+	}
+
+	function gotusermedia(obj) {
+		user_player.pause();
+		user_player.loop = '';
+		user_player.src = '';
+		user_player.srcObject = null;
+		user_player.type = '';
+		user_player.load();
+		if (obj !== null) {
+			user_player.srcObject = obj.stream;
+			user_player.load();
+			callerAudio = audioContext.createMediaStreamSource(obj.stream);
+			callerAudio.connect(mixedOutput);
+			var p = user_player.play();
+			if (p !== undefined) {
+				p.catch(error => {});
+			}
+		} else {
+			if (callerAudio) {
+				callerAudio.disconnect();
+				callerAudio = null;
+			}
+		}
+	}
+	function gotmanagermedia(obj) {
+		manager_player.pause();
+		manager_player.loop = '';
+		manager_player.src = '';
+		manager_player.srcObject = null;
+		manager_player.type = '';
+		manager_player.load();
+		if (obj !== null) {
+			manager_player.srcObject = obj.stream;
+			manager_player.load();
+			var p = manager_player.play();
+			if (p !== undefined) {
+				p.catch(error => {});
+			}
+		}
+	}
+	function userdisconnect(obj) {
+		update_call_state("user", "disconnected");
+		document.getElementById("user").value = '';
+		gotusermedia(null);
+		user_call = null;
+	}
+	function managerdisconnected(obj) {
+		update_call_state("manager", "disconnected");
+		gotmanagermedia(null);
+		manager_call = null;
+	}
+	function connecting(call_type, obj) {
+		update_call_state(call_type, "connecting");
+	}
+	function connected(call_type, obj) {
+		update_call_state(call_type, "connected");
+	}
+	function new_call(obj) {
+		if (obj.from == "whisper_manager" && obj.type == "client") {
+			update_call_state("manager", "incoming");
+			manager_call = obj.call;
+			// attach callbacks
+			manager_call.onDisconnect = managerdisconnected;
+			manager_call.onMedia = gotmanagermedia;
+			manager_call.onConnecting = connecting.bind(null, "manager");
+			manager_call.onConnected = connected.bind(null, "manager");
+			// blindly answer manager_call
+			manager_call.answer({
+				localStream: mixedOutput.stream,
+			});
+		} else if (obj.type == "service" || (obj.from == "whisper_customer" && obj.type == "client")) {
+			if (user_call != null) {
+				obj.call.reject(486);
+			} else {
+				update_call_state("user", "incoming");
+				document.getElementById("user").value = obj.from;
+				user_call = obj.call;
+				// attach callbacks
+				user_call.onDisconnect = userdisconnect;
+				user_call.onMedia = gotusermedia;
+				user_call.onConnecting = connecting.bind(null, "user");
+				user_call.onConnected = connected.bind(null, "user");
+				if (user_player.canPlayType('audio/wav')) {
+					user_player.loop = 'loop';
+					user_player.src = '../../test/media/ringing.wav';
+					user_player.type="audio/wav";
+					user_player.load();
+					var p = user_player.play();
+					if (p !== undefined) {
+						p.catch(error => {});
+					}
+				} else {
+					console.log("browser can't play audio/wav, so no ringing will be heard");
+				}
+				user_call.ringing();
+			}
+		} else {
+			obj.call.reject(403);
+		}
+	}
+	function answer_user_call() {
+		if (user_call) {
+			user_call.answer({
+				localStream: local_stream
+			});
+		}
+	}
+	function hangup_user_call() {
+		if (user_call) {
+			user_call.disconnect();
+		}
+	}
+	function incomingState(state) {
+		if (state.ready) {
+			document.getElementById("reg_state").value = "Incoming enabled";
+		} else {
+			var reg_state = "Not ready for incoming - " + state.cause;
+			if (state.retry) {
+				reg_state = reg_state + ' - retrying';
+			}
+			document.getElementById("reg_state").value = reg_state
+		}
+	}
+	function register() {
+		// get token and enable incoming
+		token = document.getElementById("token").value;
+		acc.enableIncoming(token);
+		document.getElementById("reg_state").value = "Enabling Incoming";
+		inbound_enabled = true;
+	}
+	function unregister() {
+		if (acc) {
+			acc.disableIncoming();
+			document.getElementById("reg_state").value = "Disabling Incoming";
+			inbound_enabled = false;
+		} else {
+			document.getElementById("reg_state").value = "No cloud client";
+		}
+	}
+
+	function start_client() {
+		if (acc) {
+			register();
+			return;
+		}
+		if (AculabCloudClient.isSupported()) {
+			try {
+				acc = new AculabCloudClient(cloudid, webrtcid, role, 8);
+			}
+			catch(err) {
+				acc = null;
+				alert("Error: " + err)
+			}
+			if (acc) {
+				acc.maxConcurrent = 2;
+				acc.onIncoming = new_call;
+				acc.onIncomingState = incomingState;
+				document.getElementById("reg_state").value = "Incoming disabled";
+				register();
+			} else {
+				document.getElementById("reg_state").value = "Error creating cloud client";
+			}
+		} else {
+			document.getElementById("reg_state").value = "not supported by this browser";
+		}
+	}
+	function getLocalStream() {
+		if (local_stream) {
+			start_client();
+		} else {
+			navigator.mediaDevices.getUserMedia({
+				audio: true,
+				video:false
+			})
+			.then(stream => {
+				local_stream = stream;
+				audioContext = new AudioContext();
+				mixedOutput = audioContext.createMediaStreamDestination();
+				mixedOutput.channelCount = 1;
+				microphone = audioContext.createMediaStreamSource(local_stream);
+				microphone.connect(mixedOutput);
+				start_client();
+			});
+		}
+	}
+	function make_client() {
+		cloudid = document.getElementById("cloud").value;
+		webrtcid = document.getElementById("webRtcAccessKey").value;
+		role = document.getElementById("clientId").value;
+		user_player = document.getElementById("user-player");
+		user_player.load();
+		manager_player = document.getElementById("manager-player");
+		manager_player.load();
+
+		getLocalStream();
+		if (!acc) {
+			return;
+		}
+	}
+	function dtor_client() {
+		if (user_call) {
+			user_call.disconnect();
+		}
+		if (manager_call) {
+			manager_call.disconnect();
+		}
+
+		unregister();
+		if (local_stream) {
+			local_stream.getTracks().forEach(track => {
+				track.stop();
+			});
+		}
+		if (audioContext) {
+			audioContext.close().then(() => {
+				// reset state for restart
+				audioContext = null;
+			});
+		}
+
+		acc = null; // does this need to be delayed until calls have cleared?
+	}
+	</script>
+</head>
+<body>
+	<style>
+	/* The switch - the box around the slider */
+	.switch {
+		position: relative;
+		display: inline-block;
+		width: 40px;
+		height: 24px;
+	}
+
+	/* Hide default HTML checkbox */
+	.switch input {
+		opacity: 0;
+		width: 0;
+		height: 0;
+	}
+
+	/* The slider */
+	.slider {
+		position: absolute;
+		cursor: pointer;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background-color: #ccc;
+		-webkit-transition: .4s;
+		transition: .4s;
+	}
+
+	.slider:before {
+		position: absolute;
+		content: "";
+		height: 16px;
+		width: 16px;
+		left: 4px;
+		bottom: 4px;
+		background-color: white;
+		-webkit-transition: .4s;
+		transition: .4s;
+	}
+
+	input:checked + .slider {
+		background-color: #2196F3;
+	}
+
+	input:checked:disabled + .slider {
+		background-color: #9ecdef;
+	}
+
+	input:focus + .slider {
+		box-shadow: 0 0 1px #2196F3;
+	}
+
+	input:checked + .slider:before {
+		-webkit-transform: translateX(16px);
+		-ms-transform: translateX(16px);
+		transform: translateX(16px);
+	}
+
+	/* Rounded sliders */
+	.slider.round {
+		border-radius: 24px;
+	}
+
+	.slider.round:before {
+		border-radius: 50%;
+	}
+	</style>
+    <h2>Whisper demo - agent</h2>
+	<table>
+		<tr>
+			<td style="padding:10px">
+				<table><tr><td>
+					Cloud:
+					<select id="cloud">
+						<option value="0-0-0">0-0-0</option>
+						<option value="0-2-0">0-2-0</option>
+						<option value="1-2-0" selected="selected">1-2-0</option>
+						<option value="2-2-0">2-2-0</option>
+						<option value="4-0-1">4-0-1</option>
+					</select>
+					</td></tr><tr><td>WebRTC Access Key:
+					<input id="webRtcAccessKey" size=40 value="">
+					</td></tr><tr><td>Client ID:
+					<input id="clientId" size=40 value="whisper_agent" disabled>
+					</td></tr><tr><td>Log level:
+					<select id="logLevel">
+						<option>0</option>
+						<option>1</option>
+						<option>2</option>
+						<option>3</option>
+						<option>4</option>
+						<option>5</option>
+						<option>6</option>
+						<option>7</option>
+						<option selected="selected">8</option>
+					</select>
+					</td></tr>
+					<tr><td>
+					Token: <input id="token" size=40>&nbsp;<button id="getTokenButton">Get a token</button>
+					<script>
+					var cloudObj = document.getElementById("cloud");
+					var clientObj = document.getElementById("clientId");
+					var token = document.getElementById("token");
+					var button = document.getElementById("getTokenButton");
+					var settings = {
+						ttl_fixed: true,
+						incoming: true,
+						incoming_fixed: true,
+						call_client: "",
+						call_client_fixed: true
+					}
+					setUpGetToken(button, cloudObj, clientObj, token, settings);
+					</script>
+					</td></tr>
+				</table>
+			</td>
+		</tr>
+		<tr>
+			<td style="padding:10px">
+				<button id="create_button" type="button" onclick="make_client()">Start</button>
+				<button id="del_button" type="button" onclick="dtor_client()">Stop</button>
+				<input id="reg_state" size=60 value="Not registered" disabled=true>
+				<audio id="user-player"></audio>
+				<audio id="manager-player"></audio>
+			</td>
+		</tr>
+		<tr>
+			<td style="padding:10px">
+				Customer caller ID: <input id="user" size=40 value="" disabled=true>
+				<button id="answer_button" type="button" onclick="answer_user_call()" disabled>Answer</button>
+				<button id="hangup_button" type="button" onclick="hangup_user_call()" disabled>Hang up</button>
+			</td>
+		</tr>
+		<tr>
+			<td style="padding:10px">
+				<div>Customer call state: <input id="user-call-state" size=40 value="disconnected" disabled></div>
+				<div>Manager call state: <input id="manager-call-state" size=40 value="disconnected" disabled></div>
+			</td>
+		</tr>
+	</table>
+</body>
+</html>

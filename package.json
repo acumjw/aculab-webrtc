@@ -1,6 +1,6 @@
 {
   "name": "aculab-webrtc",
-  "version": "3.1.2",
+  "version": "3.2.0",
   "main": "src/index.js",
   "type": "module",
   "dependencies": {
@@ -22,11 +22,12 @@
     "copy-dist-file-min": "cp dist/AculabCloudCaller.min.js dist/AculabCloudCaller-$npm_package_version.min.js",
     "copy-dist-files": "npm run copy-dist-file && npm run copy-dist-file-min",
     "build-interface-html": "marked -i interface.md -o interface.html",
-    "build-web-tgz": "tar -czf dist/webrtc-client-web-package-$npm_package_version.tgz --group 0 --owner 0 --numeric-owner --transform=s,^,$npm_package_version/, dist/AculabCloudCaller.js test/* interface.html",
+    "build-web-tgz": "tar -czf dist/webrtc-client-web-package-$npm_package_version.tgz --group 0 --owner 0 --numeric-owner --transform=s,^,$npm_package_version/, dist/AculabCloudCaller.js demos/* test/* interface.html",
     "build": "npm run build-package && npm run build-bundles && npm rum copy-dist-files && npm run build-interface-html && npm run build-web-tgz"
   },
   "files": [
     "/build",
+    "/demos",
     "/src",
     "/test",
     "interface.md"

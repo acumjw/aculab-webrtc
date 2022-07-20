@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Whisper demo - overview</title>
+</head>
+<body>
+<h2>Whisper demo - overview</h2>
+<style>
+.desc {
+	max-width: 50em;
+}
+</style>
+<div class="desc">
+In this scenario, the <a href="agent.html">agent</a> is called by a <a href="customer.html">customer</a> and they can talk to each other.
+The <a href="manager.html">manager</a> can connect to the agent and hear both the agent and the customer. The manager can also &quot;whisper&quot; to the agent, but can not be heard by the customer.
+<p>
+When the agent starts taking calls, the page first requests access to the microphone and then registers for incoming calls. Upon answering a customer call the previously obtained media stream, with audio from the microphone, is used as the local stream. Manager calls gets passed the output from an WebAudio context that mixes the microphone stream and the stream of received audio from the customer call.
+<p>
+The customer and manager pages just make normal WebRTC calls to the agent.
+<p>
+In each page, a token is needed. The &quot;Get token&quot; button activates a dialog that uses the <a href="https://www.aculab.com/cloud/other-apis/web-services/webrtc-clients?target=service_action_tabs&tab-id=webrtc-generate-token" target="_blank">webrtc_generate_token</a> Web Service API to generate a token. The parameters passed are displayed in the dialog. You need to enter your account details to allow the dialog to call the web service.
+</div>
+</body>
+</html>
