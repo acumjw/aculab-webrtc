@@ -74,6 +74,9 @@
 	}
 	function userdisconnect(obj) {
 		update_call_state("user", "disconnected");
+		var mute = document.getElementById("user-mute-mic");
+		mute.checked = false;
+		mute.disabled = true;
 		document.getElementById("user").value = '';
 		gotusermedia(null);
 		user_call = null;
@@ -88,6 +91,9 @@
 	}
 	function connected(call_type, obj) {
 		update_call_state(call_type, "connected");
+		if (call_type == "user") {
+			document.getElementById("user-mute-mic").disabled = false;
+		}
 	}
 	function new_call(obj) {
 		if (obj.from == "whisper_manager" && obj.type == "client") {
@@ -142,6 +148,12 @@
 	function hangup_user_call() {
 		if (user_call) {
 			user_call.disconnect();
+		}
+	}
+	function mute_user_call(slot) {
+		if (user_call) {
+			var mic = document.getElementById("user-mute-mic").checked;
+			user_call.mute(mic, false);
 		}
 	}
 	function incomingState(state) {
@@ -389,6 +401,15 @@
 				Customer caller ID: <input id="user" size=40 value="" disabled=true>
 				<button id="answer_button" type="button" onclick="answer_user_call()" disabled>Answer</button>
 				<button id="hangup_button" type="button" onclick="hangup_user_call()" disabled>Hang up</button>
+			</td>
+		</tr>
+		<tr>
+			<td style="padding:10px">
+				Mute audio to customer:
+				<label class="switch">
+					<input type="checkbox" id="user-mute-mic" onchange="mute_user_call()" disabled=true>
+					<span class="slider round"></span>
+				</label>
 			</td>
 		</tr>
 		<tr>
