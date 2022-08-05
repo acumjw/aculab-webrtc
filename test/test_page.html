@@ -596,23 +596,27 @@
 		if (call_client != "") {
 			data.append("call_client", call_client);
 		}
-		fetch("https://ws-" + cloud + ".aculabcloud.net/webrtc_generate_token", {
+		fetch(`https://ws-${cloud}.aculabcloud.net/webrtc_generate_token`, {
 			method: 'POST',
 			headers: {
 				"Authorization": "Basic " + btoa(cloud + "/" + username + ":" + password)
 			},
 			body: data
-		}).then(response => {
-			if (!response.ok) {
-			  throw new Error('HTTP ' + response.status);
-			}
-			return response.json();
 		})
-		.then(j => {
-			document.getElementById("token").value = j.token;
-		  })
+		.then(async response => {
+			const isJson = response.headers.get('content-type')?.includes('application/json');
+			const data = isJson ? await response.json() : null;
+
+			// check for error response
+			if (!response.ok) {
+				// get error message from body or default to response status
+				const error = (data && data.error && data.error.text) || `HTTP ${response.status}`;
+				return Promise.reject(error);
+			}
+			document.getElementById("token").value = data.token;
+		})
 		.catch(error => {
-			document.getElementById("token").value = error.toString();
+			document.getElementById("token").value = `Error: ${error}`;
 			console.error('There has been a problem with your fetch operation:', error);
 		});
 	}

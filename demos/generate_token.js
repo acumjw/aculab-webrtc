@@ -244,14 +244,17 @@ function setUpGetToken(showButton, cloudObj, clientObj, tokenObj, settings) {
 				"Authorization": "Basic " + btoa(cloud + "/" + username + ":" + password)
 			},
 			body: data
-		}).then(response => {
+		}).then(async response => {
+			const isJson = response.headers.get('content-type')?.includes('application/json');
+			const data = isJson ? await response.json() : null;
+
+			// check for error response
 			if (!response.ok) {
-			  throw new Error('HTTP ' + response.status);
+				// get error message from body or default to response status
+				const error = (data && data.error && data.error.text) || `HTTP ${response.status}`;
+				return Promise.reject(error);
 			}
-			return response.json();
-		})
-		.then(j => {
-			tokenObj.value = j.token;
+			tokenObj.value = data.token;
 			modal.style.display = "none";
 		  })
 		.catch(error => {
