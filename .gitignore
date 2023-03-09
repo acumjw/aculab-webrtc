@@ -105,3 +105,6 @@ dist
 
 # generated interface html
 interface.html
+
+# apple
+.DS_Store

@@ -1,43 +1,15 @@
-import {
-    Web,
-    EmitterImpl,
-    SessionDescriptionHandlerError,
-    Modifiers,
-} from 'sip.js';
+import {Web} from 'sip.js';
 
-
-
-var NativeModules = "";
-var RTCPeerConnection = "";
-var RTCIceCandidate = "";
-var MediaStream = "";
-var mediaDevices = "";
-var RTCView = "";
+let RTCPeerConnection;
+let MediaStream;
+let mediaDevices;
+let WebRTCModule;
 
 if (typeof document == 'undefined') {
     // I'm on the react-native!
-    NativeModules = require('react-native').NativeModules
-    rnw = require('react-native-webrtc')
-    RTCPeerConnection = rnw.RTCPeerConnection
-    RTCIceCandidate = rnw.RTCIceCandidate
-    MediaStream = rnw.MediaStream
-    mediaDevices = rnw.mediaDevices
-    RTCView = rnw.RTCView
-    
+    WebRTCModule = require('react-native').NativeModules.WebRTCModule
+    RTCPeerConnection, MediaStream, mediaDevices = require('react-native-webrtc')
 }
-var {WebRTCModule} = NativeModules;
-
-
-function defer() {
-    const deferred = {};
-    deferred.promise = new Promise((resolve, reject) => {
-        deferred.resolve = resolve;
-        deferred.reject = reject;
-    });
-    return deferred;
-}
-
-//registerGlobals();
 
 export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionHandler {
     constructor(logger, mediaStreamFactory, sessionDescriptionHandlerConfiguration) {
@@ -58,6 +30,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         // return the first remote stream on react-native
         return this._peerConnection.getRemoteStreams()[0]
     }
+    
     setRemoteTrack(track) {
         if (this._peerConnection.getSenders) {
             return (super.setRemoteTrack(track));
@@ -65,8 +38,8 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         // Don't want to actually use this function since we are using depricated
         // getlocalStreams....  NEED THIS EVENTUALLY ONE OF THE APIS REACT NATIVE NEEDS
         this.logger.debug("SessionDescriptionHandler.setRemoteTrack");
-        
     }
+
     setLocalMediaStream(stream) {
         this.logger.debug("SessionDescriptionHandler.setLocalMediaStream");
         if (!this._peerConnection) {
@@ -90,7 +63,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         return constraints;
     }
     
-    
     /**
      * Send DTMF via RTP (RFC 4733)
      * @param {String} tones A string containing DTMF digits
@@ -98,12 +70,12 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
      * @returns {boolean} true if DTMF send is successful, false otherwise
      */
     sendDtmf(indtmf, options) {
-        if (this._peerConnection.getSenders) {
+        if (this._peerConnection.getSenders && !WebRTCModule) {
             return ( super.sendDtmf(indtmf, options));
         }
         
-        
         this.logger.debug('AculabCloudCall sendDtmf(' + indtmf + ')');
+
         if (indtmf.match(/[^0-9A-Da-d#*]/) != null) {
             throw 'Invalid DTMF string';
         }
@@ -111,7 +83,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         if (this._peerConnection) {
             try {
                 var pc = this._peerConnection;
-                WebRTCModule.peerConnectionSendDTMF(indtmf, 500, 400, pc._peerConnectionId);
+                WebRTCModule.peerConnectionSendDTMF(indtmf, 500, 400, pc._pcId);
             }
             catch(e) {
                 this.logger.error('AculabCloudCall: Exception sending DTMF: ' + e);
@@ -162,15 +134,17 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
             throw error;
         });
     }
+
     async getMediaStreams(constraints)
     {
-        
         return await mediaDevices.getUserMedia(constraints);
     }
+
     async getMediaDevices()
     {
         return await mediaDevices.enumerateDevices();
     }
+    
     async getLocalMediaStream(options) {
         try {
             if (options.localStream !== undefined) {
@@ -251,7 +225,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         const match = sdp.match(/a=(sendrecv|sendonly|recvonly|inactive)/);
         if (match === null) {
             this.direction = this.C.DIRECTION.NULL;
-            
             return;
         }
         const direction = match[1];
@@ -266,7 +239,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
                 this.direction = this.C.DIRECTION.NULL;
                 break;
         }
-        
     }
 
     updateDirection(options) {
@@ -282,6 +254,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
             }
             return "unknown";
         });
+
         const updateTransceiverCodecsAndBitrates = ((transceiver, kind) => {
             if (transceiver.setCodecPreferences) {
                 if (kind == "video") {
@@ -327,6 +300,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
                 }
             }
         });
+
         switch (this._peerConnection.signalingState) {
             case "stable":
                 // if we are stable, assume we are creating a local offer
@@ -488,6 +462,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         }
         return opts;
     }
+
     static get_audio_video_directions(sdp) {
         let lines = sdp.split("\r\n");
         let sess_dir = "";
@@ -575,13 +550,11 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         }
         return rtcConfiguration;
     }
+
     addDefaultIceCheckingTimeout(peerConnectionOptions) {
         if (peerConnectionOptions.iceCheckingTimeout === undefined) {
             peerConnectionOptions.iceCheckingTimeout = 5000;
         }
         return peerConnectionOptions;
     }
-
 }
-
-
