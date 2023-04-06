@@ -1,8 +1,14 @@
-import {Web} from 'sip.js';
+import {
+    Web,
+    EmitterImpl,
+    SessionDescriptionHandlerError,
+    Modifiers,
+} from 'sip.js';
 
-let RTCPeerConnection;
-let MediaStream;
-let mediaDevices;
+
+let rtcPeerConnection;
+let mStream;
+let mediaDevices = "";
 let WebRTCModule;
 
 if (typeof document == 'undefined') {
@@ -10,11 +16,24 @@ if (typeof document == 'undefined') {
     WebRTCModule = require('react-native').NativeModules.WebRTCModule
     RTCPeerConnection, MediaStream, mediaDevices = require('react-native-webrtc')
 }
+//var {WebRTCModule} = NativeModules;
+
+
+function defer() {
+    const deferred = {};
+    deferred.promise = new Promise((resolve, reject) => {
+        deferred.resolve = resolve;
+        deferred.reject = reject;
+    });
+    return deferred;
+}
+
+//registerGlobals();
 
 export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionHandler {
     constructor(logger, mediaStreamFactory, sessionDescriptionHandlerConfiguration) {
         super(logger, mediaStreamFactory, sessionDescriptionHandlerConfiguration);
-        this.notified_stream = null;
+        this.notified_streams = [];
         this.WebRTC = {
             MediaStream,
         getUserMedia: mediaDevices.getUserMedia,
@@ -22,37 +41,179 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         };
         this.options = {};
         this.usingOptionsLocalStream = false;
+        this.localMediaStreams = [];
+        this._acuRemoteMediaStreams = [];
+        this.userToInternalLocalStreamIds = new Map();
+        this.remoteMediaStreamsToInternal = new Map();
+    }
+    addRemoteMediaStream(stream, track) {
+        console.log("mjw... adding remote media stream " + stream.id + " " + track.id);
+        let found = false;
+        let internalStreamId = this.remoteMediaStreamsToInternal.get(stream.id);
+
+        if (!internalStreamId) {
+            console.log("mjw... not found stream");
+            console.log(stream.getTracks());
+            let newStream = stream;
+            this._acuRemoteMediaStreams.push(newStream);
+            this.remoteMediaStreamsToInternal.set(stream.id, newStream.id);
+            internalStreamId = newStream.id;
+        }
+
+        this._acuRemoteMediaStreams.forEach((st) => {
+            console.log("mjw... Checking for tracks in stream " + st.id);
+            if (st.id == internalStreamId) {
+                console.log("mjw... Found correct stream");
+                if (!st.getTrackById(track.id)) {
+                    console.log("mjw... not found track");
+                    st.addTrack(track);
+                }
+            }
+        });
+        console.log("mjw... added media track " + track.id);
+        console.log(this._acuRemoteMediaStreams); // mjw...
+    }
+    removeRemoteMediaTrack(track) {
+        console.log("mjw... removing remove media track " + track.id);
+        console.log(this._acuRemoteMediaStreams); // mjw...
+        console.log("mjw... removing remove media track " + this._acuRemoteMediaStreams.length);
+        for (let i = this._acuRemoteMediaStreams.length - 1; i > 0; i--) {
+            console.log("mjw... got stream tracks " + this._acuRemoteMediaStreams[i].getTracks());
+            console.log(this._acuRemoteMediaStreams[i].getTracks()); // mjw...
+            if (this._acuRemoteMediaStreams[i].getTrackById(track.id)) {
+                console.log("mjw... got track");
+                this._acuRemoteMediaStreams[i].removeTrack(track);
+            }
+            if (this._acuRemoteMediaStreams[i].getTracks().length == 0) {
+                console.log("mjw... removing track");
+                console.log(this._acuRemoteMediaStreams);
+                this._acuRemoteMediaStreams.splice(i, 1);
+                console.log(this._acuRemoteMediaStreams);
+            }
+        }
+    }
+
+    get remoteMediaStreams() {
+/*
+        let receivers = this._peerConnection.getReceivers();
+        let receiversToAdd = []
+        receivers.forEach((recv) => {
+            let found = false;
+            console.log("mjw... Maybe adding new track");
+            console.log(recv.track);
+            this._acuRemoteMediaStreams.forEach((stream) => {
+                if (stream.getTrackById(recv.track.id)) {
+                    found = true;
+                    return;
+                }
+            });
+            if (!found) {
+                console.log("mjw... Adding new track");
+                console.log(recv.track);
+                receiversToAdd.push(recv.track);
+            }
+        });
+        let stream = new MediaStream();
+        receiversToAdd.forEach((track) =>{
+            if ((track.kind == "audio" || track.kind == "video") && stream.getTracks().length == 0) {
+                this._acuRemoteMediaStreams.push(stream);
+            }
+            if (track.kind == "audio") {
+                if (stream.getAudioTracks().length == 1) {
+                    stream = new MediaStream();
+                    this._acuRemoteMediaStreams.push(stream);
+                }
+                stream.addTrack(track);
+            } else if (track.kind == "video") {
+                if (stream.getVideoTracks().length == 1) {
+                    stream = new MediaStream();
+                    this._acuRemoteMediaStreams.push(stream);
+                }
+                stream.addTrack(track);
+            }
+        });
+*/
+        return this._acuRemoteMediaStreams;
     }
     get remoteMediaStream() {
+        console.log(this._peerConnection.getReceivers());
         if (this._peerConnection.getSenders) {
             return super.remoteMediaStream;
+//            return this._remoteMediaStream;
         }
         // return the first remote stream on react-native
         return this._peerConnection.getRemoteStreams()[0]
     }
-    
     setRemoteTrack(track) {
-        if (this._peerConnection.getSenders) {
-            return (super.setRemoteTrack(track));
-        }
         // Don't want to actually use this function since we are using depricated
         // getlocalStreams....  NEED THIS EVENTUALLY ONE OF THE APIS REACT NATIVE NEEDS
         this.logger.debug("SessionDescriptionHandler.setRemoteTrack");
-    }
 
+        const remoteStream = this._remoteMediaStream;
+
+        if (remoteStream.getTrackById(track.id)) {
+          this.logger.debug(`SessionDescriptionHandler.setRemoteTrack - have remote ${track.kind} track`);
+        } else if (track.kind === "audio") {
+          this.logger.debug(`SessionDescriptionHandler.setRemoteTrack - adding remote ${track.kind} track`);
+/*
+          remoteStream.getAudioTracks().forEach((track) => {
+            track.stop();
+            remoteStream.removeTrack(track);
+            Web.SessionDescriptionHandler.dispatchRemoveTrackEvent(remoteStream, track);
+          });
+*/
+          remoteStream.addTrack(track);
+          Web.SessionDescriptionHandler.dispatchAddTrackEvent(remoteStream, track);
+        } else if (track.kind === "video") {
+          this.logger.debug(`SessionDescriptionHandler.setRemoteTrack - adding remote ${track.kind} track`);
+/*
+          remoteStream.getVideoTracks().forEach((track) => {
+            track.stop();
+            remoteStream.removeTrack(track);
+            Web.SessionDescriptionHandler.dispatchRemoveTrackEvent(remoteStream, track);
+          });
+*/
+          remoteStream.addTrack(track);
+          Web.SessionDescriptionHandler.dispatchAddTrackEvent(remoteStream, track);
+        }
+    }
     setLocalMediaStream(stream) {
         this.logger.debug("SessionDescriptionHandler.setLocalMediaStream");
         if (!this._peerConnection) {
             throw new Error("Peer connection undefined.");
         }
-        if (this._peerConnection.getSenders) {
-            return (super.setLocalMediaStream(stream));
+        let exists = false;
+        this.logger.debug("SessionDescriptionHandler.setLocalMediaStream: Finding stream " + stream.id);
+
+        this.localMediaStreams.forEach((stm) => {
+            this.logger.debug("SessionDescriptionHandler.setLocalMediaStream: Checking stream " + stream.id);
+            if (stream.id ==  stm.id) {
+                this.logger.debug("SessionDescriptionHandler.setLocalMediaStream: Stream already exists " + stream.id);
+                exists = true;
+                return;
+            }
+	});
+
+        if (!exists) {
+            this.localMediaStreams.push(stream);
+            this.logger.debug("SessionDescriptionHandler.setLocalMediaStream: Adding audio tracks " + stream.id);
+            // update peer connection audio tracks
+            stream.getAudioTracks().forEach((track) => {
+                this._peerConnection.addTrack(track, stream);
+                this._localMediaStream.addTrack(track);
+                Web.SessionDescriptionHandler.dispatchAddTrackEvent(stream, track);
+            });
+            this.logger.debug("SessionDescriptionHandler.setLocalMediaStream: Adding video tracks " + stream.id);
+            stream.getVideoTracks().forEach((track) => {
+                this._peerConnection.addTrack(track, stream);
+                this._localMediaStream.addTrack(track);
+                Web.SessionDescriptionHandler.dispatchAddTrackEvent(stream, track);
+            });
         }
-        this._peerConnection.addStream(stream);
-        this._localMediaStream = stream;
+
         return Promise.resolve();
     }
-    
+
     checkAndDefaultConstraints(constraints) {
         const defaultConstraints = { audio: true, video: true };
         constraints = constraints || defaultConstraints;
@@ -63,6 +224,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         return constraints;
     }
     
+    
     /**
      * Send DTMF via RTP (RFC 4733)
      * @param {String} tones A string containing DTMF digits
@@ -70,12 +232,12 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
      * @returns {boolean} true if DTMF send is successful, false otherwise
      */
     sendDtmf(indtmf, options) {
-        if (this._peerConnection.getSenders && !WebRTCModule) {
+        if (this._peerConnection.getSenders) {
             return ( super.sendDtmf(indtmf, options));
         }
         
+        
         this.logger.debug('AculabCloudCall sendDtmf(' + indtmf + ')');
-
         if (indtmf.match(/[^0-9A-Da-d#*]/) != null) {
             throw 'Invalid DTMF string';
         }
@@ -83,7 +245,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         if (this._peerConnection) {
             try {
                 var pc = this._peerConnection;
-                WebRTCModule.peerConnectionSendDTMF(indtmf, 500, 400, pc._pcId);
+                WebRTCModule.peerConnectionSendDTMF(indtmf, 500, 400, pc._peerConnectionId);
             }
             catch(e) {
                 this.logger.error('AculabCloudCall: Exception sending DTMF: ' + e);
@@ -100,10 +262,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
      * @param modifiers - Modifiers.
      */
     getDescription(options, modifiers) {
-        if (this._peerConnection.getSenders) {
-            return ( super.getDescription(options, modifiers));
-        }
-        
         var _a, _b;
         this.logger.debug("SessionDescriptionHandler.getDescription");
         if (this._peerConnection === undefined) {
@@ -116,7 +274,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         // ICE gathering timeout may be set on a per call basis, otherwise the configured default is used
         const iceTimeout = (options === null || options === void 0 ? void 0 : options.iceGatheringTimeout) === undefined
         ? (_b = this.sessionDescriptionHandlerConfiguration) === null || _b === void 0 ? void 0 : _b.iceGatheringTimeout : options === null || options === void 0 ? void 0 : options.iceGatheringTimeout;
-        return this.getLocalMediaStream(options)
+        return this.getLocalMediaStreams(options)
         .then(() => this.createDataChannel(options))
         .then(() =>(this.createLocalOfferOrAnswer(options)))
         .then((sessionDescription) => this.applyModifiers(sessionDescription, modifiers))
@@ -134,38 +292,120 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
             throw error;
         });
     }
-
     async getMediaStreams(constraints)
     {
         return await mediaDevices.getUserMedia(constraints);
     }
-
     async getMediaDevices()
     {
         return await mediaDevices.enumerateDevices();
     }
-    
+    getLocalMediaStreamById(id) {
+        var stream = null;
+        this.localMediaStreams.forEach((strm) => {
+            console.log("mjw... getLocalMediaStreamById " + strm.id + " " + id);
+            if (strm.id === id) {
+                console.log("mjw... getLocalMediaStreamById found " + strm.id + " " + id);
+                stream = strm;
+            }
+        });
+        return stream;
+    }
     async getLocalMediaStream(options) {
+        let ms = this.getLocalMediaStreams(options);
+        if (ms !== null && ms.length > 0) {
+            return ms[0];
+        }
+        return null;
+    }
+    removeLocalMediaStream(stream) {
+        this._peerConnection.getSenders().forEach((sender) => {
+            if (sender.track) {
+                console.log("mjw... sender track " + sender.track.id);
+                stream.getTracks().forEach((track) => {
+                    if (sender.track && sender.track.id == track.id) {
+                        console.log("mjw... removing track "  + track.id);
+                        this._peerConnection.removeTrack(sender);
+                    }
+                });
+            }
+	});
+    }
+    async getLocalMediaStreams(options) {
+        if (options.constraints === undefined) {
+          options = this.options;
+        }
         try {
-            if (options.localStream !== undefined) {
-                if (!this.usingOptionsLocalStream) {
-                    this.setLocalMediaStream(options.localStream);
+            let reinvite = false;
+            if (options.reinvite !== undefined) {
+              reinvite = options.reinvite;
+              options.reinvite = false;
+            }
+
+            if (options.localStreams !== undefined) {
+                let addedStreams = [];
+                if (reinvite || !this.usingOptionsLocalStream) {
                     this.usingOptionsLocalStream = true;
+                    options.localStreams.forEach((stream) => {
+                        let internalStreamId = null;
+                        this.userToInternalLocalStreamIds.forEach((value, key, table) => {
+                            console.log("mjw... comparing " + key + " " + value + " " + stream.id);
+                            if (key == stream.id) {
+                                internalStreamId = value;
+                                console.log("mjw... found internal stream id " + internalStreamId);
+                            }
+                        });
+                        if (!internalStreamId) {
+                            // Clone the stream in case it changes beneath us
+                            let newStream = stream.clone();
+                            internalStreamId = newStream.id;
+                            this.setLocalMediaStream(newStream);
+                            this.userToInternalLocalStreamIds.set(stream.id, newStream.id);
+                        }
+                        addedStreams.push(internalStreamId);
+                    });
+                    console.log("mjw... added streams ");
+                    console.log(addedStreams); // mjw...
+                    this.localMediaStreams.forEach((stream) => {
+                        if (!addedStreams.includes(stream.id)) {
+                            console.log("mjw... removing stream " + stream.id);
+                            let userStreamId = null;
+                            this.userToInternalLocalStreamIds.forEach((value, key, table) => {
+                                if (value == stream.id) {
+                                    userStreamId = key;
+                                }
+                            });
+                            if (userStreamId) {
+                                console.log("mjw... removing reference to local stream");
+                                this.userToInternalLocalStreamIds.delete(userStreamId);
+                            }
+                            this.removeLocalMediaStream(stream);
+                        }
+                    });
+                    options.reinvite = false;
                 }
             } else {
                 await super.getLocalMediaStream(options);
             }
-            if (this.onUserMedia && this.notified_stream != this._localMediaStream) {
-                this.notified_stream = this._localMediaStream;
-                this.onUserMedia(this._localMediaStream);
+            this.options = options;
+            if (this.onUserMedia) {
+		if (options.localStreams !== undefined) {
+                    this.localMediaStreams.forEach((stream) => {
+                        if (!this.notified_streams.includes(stream.id)) {
+                            this.onUserMedia(stream);
+                            this.notified_streams.push(this._localMediaStream);
+                        }
+                    });
+                }
             }
-            return this._localMediaStream;
+            return this.localMediaStreams;
         } catch (error) {
             if (this.onUserMediaFailed) {
                 this.onUserMediaFailed(error);
             }
             throw error;
         }
+        return null;
     }
     
     resetIceGatheringComplete() {
@@ -225,6 +465,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         const match = sdp.match(/a=(sendrecv|sendonly|recvonly|inactive)/);
         if (match === null) {
             this.direction = this.C.DIRECTION.NULL;
+            
             return;
         }
         const direction = match[1];
@@ -239,6 +480,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
                 this.direction = this.C.DIRECTION.NULL;
                 break;
         }
+        
     }
 
     updateDirection(options) {
@@ -254,7 +496,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
             }
             return "unknown";
         });
-
         const updateTransceiverCodecsAndBitrates = ((transceiver, kind) => {
             if (transceiver.setCodecPreferences) {
                 if (kind == "video") {
@@ -300,7 +541,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
                 }
             }
         });
-
         switch (this._peerConnection.signalingState) {
             case "stable":
                 // if we are stable, assume we are creating a local offer
@@ -438,14 +678,25 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
             maxBitrateAudio: undefined,
             maxBitrateVideo: undefined,
             localStream: undefined,
+            localStreams: undefined,
         };
         let opts = {...defaults, ...options};
         if (opts.localStream) {
-            // clone the passed in stream, so it doesn't change under us
-            opts.localStream = opts.localStream.clone();
-            // with a local stream, the constraints are only used to set SDP direction
-            opts.constraints.audio = opts.localStream.getAudioTracks().length > 0;
-            opts.constraints.video = opts.localStream.getVideoTracks().length > 0;
+            // Backwards compatibility:
+            // Add this to the localStreams array, and deal with it there
+            opts.localStreams = [opts.localStream];
+	}
+        if (opts.localStreams) {
+            let has_audio = false;
+            let has_video = false;
+            console.log("mjw... stream map ");
+            console.log(opts.userToInternalLocalStreamIds); // mjw...
+            for (let i = 0; i < opts.localStreams.length; i++) {
+                has_audio = has_audio | opts.localStreams[i].getAudioTracks().length > 0;
+                has_video = has_video | opts.localStreams[i].getVideoTracks().length > 0;
+            }
+            opts.constraints.audio = has_audio;
+            opts.constraints.video = has_video;
         }
         if (opts.receiveAudio === undefined) {
             opts.receiveAudio = (opts.constraints.audio != false);
@@ -462,7 +713,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         }
         return opts;
     }
-
     static get_audio_video_directions(sdp) {
         let lines = sdp.split("\r\n");
         let sess_dir = "";
@@ -550,7 +800,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         }
         return rtcConfiguration;
     }
-
     addDefaultIceCheckingTimeout(peerConnectionOptions) {
         if (peerConnectionOptions.iceCheckingTimeout === undefined) {
             peerConnectionOptions.iceCheckingTimeout = 5000;
@@ -558,3 +807,5 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         return peerConnectionOptions;
     }
 }
+
+

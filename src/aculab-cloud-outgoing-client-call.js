@@ -6,7 +6,7 @@ export class AculabCloudOutgoingClientCall extends AculabCloudOutgoingCall {
 		let uri = new URI("sip", clientId, `${client._webRtcAccessKey}.webrtc-${client._cloud}.aculabcloud.net;transport=tcp`);
 		super(client, uri, {
 			extraHeaders: ["Authorization: Bearer " + token]
-		}, options);
+		}, options, true);
 	}
 	_add_media_handlers(sdh) {
 		super._add_media_handlers(sdh);

@@ -4,11 +4,16 @@ import { MediaEventSessionDescriptionHandler } from "./media-event-session-descr
 import { SessionState } from "sip.js";
 
 export class AculabCloudOutgoingCall extends AculabCloudCall {
-	constructor(client, uri, inviter_options, options) {
+	constructor(client, uri, inviter_options, options, reinvite_possible) {
 		super(client);
 		this._uri = uri;
 		this._inviter_options = inviter_options;
 		this._sdh_options = MediaEventSessionDescriptionHandler.fixup_options(options);
+		if (!reinvite_possible || options.localStreams === undefined) {
+			this.allowed_reinvite = false;
+		} else {
+			this.allowed_reinvite = true;
+		}
 		this._disconnect_called = false;
 		if (this.client._isReady()) {
 			this._doinvite();
@@ -75,6 +80,36 @@ export class AculabCloudOutgoingCall extends AculabCloudCall {
 				}
 				this._session.cancel();
 			}
+		}
+	}
+
+	reinvite(options) {
+		if (!this.allowed_reinvite) {
+			throw 'Reinvite not available';
+		}
+		if (options.localStreams === undefined || options.localStreams.length == 0) {
+			throw 'At least one MediaStream needed in options.localStreams';
+		}
+		this.client.console_error('AculabCloudOutgoingCall reinvite :' + this._session);
+		if (this._session && !this._disconnect_called) {
+			try {
+				this._sdh_options = MediaEventSessionDescriptionHandler.fixup_options(options);
+				let opts = { 
+				};
+				this._sdh_options.reinvite = true;
+				console.log(this._sdh_options);
+				opts.sessionDescriptionHandlerOptions = this._sdh_options;
+				opts.sessionDescriptionHandlerOptionsReInvite = this._sdh_options;
+				this.client.console_error('AculabCloudCall: new constraints: ' + opts);
+				this.client.console_error(opts);
+				this._session.invite(opts);
+			}
+			catch(e) {
+				this.client.console_error('AculabCloudCall: Exception changing constraints: ' + e.message);
+				throw 'Reinvite error';
+			}
+		} else {
+			throw 'Reinvite error';
 		}
 	}
 }
