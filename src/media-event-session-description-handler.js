@@ -59,13 +59,10 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         return userStream;
     }
     addRemoteMediaStream(stream, track) {
-        console.log("mjw... adding remote media stream " + stream.id + " " + track.id);
         let found = false;
         let internalStreamId = this.remoteMediaStreamsToInternal.get(stream.id);
 
         if (!internalStreamId) {
-            console.log("mjw... not found stream");
-            console.log(stream.getTracks());
             let newStream = stream;
             this._acuRemoteMediaStreams.push(newStream);
             this.remoteMediaStreamsToInternal.set(stream.id, newStream.id);
@@ -73,85 +70,31 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         }
 
         this._acuRemoteMediaStreams.forEach((st) => {
-            console.log("mjw... Checking for tracks in stream " + st.id);
             if (st.id == internalStreamId) {
-                console.log("mjw... Found correct stream");
                 if (!st.getTrackById(track.id)) {
-                    console.log("mjw... not found track");
                     st.addTrack(track);
                 }
             }
         });
-        console.log("mjw... added media track " + track.id);
-        console.log(this._acuRemoteMediaStreams); // mjw...
     }
     removeRemoteMediaTrack(track) {
-        console.log("mjw... removing remove media track " + track.id);
-        console.log(this._acuRemoteMediaStreams); // mjw...
-        console.log("mjw... removing remove media track " + this._acuRemoteMediaStreams.length);
         for (let i = this._acuRemoteMediaStreams.length - 1; i > 0; i--) {
-            console.log("mjw... got stream tracks " + this._acuRemoteMediaStreams[i].getTracks());
-            console.log(this._acuRemoteMediaStreams[i].getTracks()); // mjw...
             if (this._acuRemoteMediaStreams[i].getTrackById(track.id)) {
-                console.log("mjw... got track");
                 this._acuRemoteMediaStreams[i].removeTrack(track);
             }
             if (this._acuRemoteMediaStreams[i].getTracks().length == 0) {
-                console.log("mjw... removing track");
-                console.log(this._acuRemoteMediaStreams);
                 this._acuRemoteMediaStreams.splice(i, 1);
-                console.log(this._acuRemoteMediaStreams);
             }
         }
     }
 
     get remoteMediaStreams() {
-/*
-        let receivers = this._peerConnection.getReceivers();
-        let receiversToAdd = []
-        receivers.forEach((recv) => {
-            let found = false;
-            console.log("mjw... Maybe adding new track");
-            console.log(recv.track);
-            this._acuRemoteMediaStreams.forEach((stream) => {
-                if (stream.getTrackById(recv.track.id)) {
-                    found = true;
-                    return;
-                }
-            });
-            if (!found) {
-                console.log("mjw... Adding new track");
-                console.log(recv.track);
-                receiversToAdd.push(recv.track);
-            }
-        });
-        let stream = new MediaStream();
-        receiversToAdd.forEach((track) =>{
-            if ((track.kind == "audio" || track.kind == "video") && stream.getTracks().length == 0) {
-                this._acuRemoteMediaStreams.push(stream);
-            }
-            if (track.kind == "audio") {
-                if (stream.getAudioTracks().length == 1) {
-                    stream = new MediaStream();
-                    this._acuRemoteMediaStreams.push(stream);
-                }
-                stream.addTrack(track);
-            } else if (track.kind == "video") {
-                if (stream.getVideoTracks().length == 1) {
-                    stream = new MediaStream();
-                    this._acuRemoteMediaStreams.push(stream);
-                }
-                stream.addTrack(track);
-            }
-        });
-*/
         return this._acuRemoteMediaStreams;
     }
     get remoteMediaStream() {
         console.log(this._peerConnection.getReceivers());
         if (this._peerConnection.getSenders) {
             return super.remoteMediaStream;
-//            return this._remoteMediaStream;
         }
         // return the first remote stream on react-native
         return this._peerConnection.getRemoteStreams()[0]
@@ -315,9 +258,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
     getLocalMediaStreamById(id) {
         var stream = null;
         this.localMediaStreams.forEach((strm) => {
-            console.log("mjw... getLocalMediaStreamById " + strm.id + " " + id);
             if (strm.id === id) {
-                console.log("mjw... getLocalMediaStreamById found " + strm.id + " " + id);
                 stream = strm;
             }
         });
@@ -333,10 +274,8 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
     removeLocalMediaStream(stream) {
         this._peerConnection.getSenders().forEach((sender) => {
             if (sender.track) {
-                console.log("mjw... sender track " + sender.track.id);
                 stream.getTracks().forEach((track) => {
                     if (sender.track && sender.track.id == track.id) {
-                        console.log("mjw... removing track "  + track.id);
                         this._peerConnection.removeTrack(sender);
                     }
                 });
@@ -362,10 +301,8 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
                     options.localStreams.forEach((stream) => {
                         let internalStreamId = null;
                         this.userToInternalLocalStreamIds.forEach((value, key, table) => {
-                            console.log("mjw... comparing " + key + " " + value + " " + stream.id);
                             if (key == stream.id) {
                                 internalStreamId = value;
-                                console.log("mjw... found internal stream id " + internalStreamId);
                             }
                         });
                         if (!internalStreamId) {
@@ -377,11 +314,8 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
                         }
                         addedStreams.push(internalStreamId);
                     });
-                    console.log("mjw... added streams ");
-                    console.log(addedStreams); // mjw...
                     this.localMediaStreams.forEach((stream) => {
                         if (!addedStreams.includes(stream.id)) {
-                            console.log("mjw... removing stream " + stream.id);
                             let userStreamId = null;
                             this.userToInternalLocalStreamIds.forEach((value, key, table) => {
                                 if (value == stream.id) {
@@ -389,7 +323,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
                                 }
                             });
                             if (userStreamId) {
-                                console.log("mjw... removing reference to local stream");
                                 this.userToInternalLocalStreamIds.delete(userStreamId);
                             }
                             this.removeLocalMediaStream(stream);
@@ -402,44 +335,33 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
             }
             this.options = options;
             if (this.onUserMedia) {
-                console.log("mjw... doing onUserMedia");
-                console.log(this.notified_streams); //mjw...
 		if (options.localStreams !== undefined) {
 		    let notified_stream_ids = this.notified_streams.map(x => x.id);
                     this.localMediaStreams.forEach((stream) => {
                         if (!notified_stream_ids.includes(stream.id)) {
-                            console.log("mjw... notifying UserMedia");
+                            this.logger.debug("SessionDescriptionHandler.getLocalMediaStreams, notifying user media");
                             let notified = this.onUserMedia(stream);
-                            console.log("mjw... notified UserMedia " + notified);
                             if (notified) {
                                 this.notified_streams.push(stream);
 			    }
-                            console.log("mjw... pushed stream");
-                            console.log(this.notified_streams); // mjw...
                         }
                     });
                 }
             }
             if (this.onUserMediaRemove) {
-                console.log("mjw... doing onUserMediaRemove");
 		if (options.localStreams !== undefined) {
 		    let local_stream_ids = this.localMediaStreams.map(x => x.id);
-                    console.log("mjw... doing onUserMediaRemoved, local stream ids " + local_stream_ids);
                     let removed_ids = [];
                     this.notified_streams.forEach((stream) => {
-                        console.log("mjw... doing onUserMediaRemoved, checking stream " + stream.id);
                         if (!local_stream_ids.includes(stream.id)) {
+                            this.logger.debug("SessionDescriptionHandler.getLocalMediaStreams, notifying user media removed");
                             let notified = this.onUserMediaRemove(stream);
                             if (notified) {
                                 removed_ids.push(stream.id);
                             }
                         }
                     });
-                    console.log("mjw... removing streams from notified_streams ");
-                    console.log(this.notified_streams); // mjw...
                     this.notified_streams = this.notified_streams.filter(stream => !removed_ids.includes(stream.id));
-                    console.log("mjw... after removing streams from notified_streams ");
-                    console.log(this.notified_streams); // mjw...
                 }
             }
             return this.localMediaStreams;
@@ -733,8 +655,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         if (opts.localStreams) {
             let has_audio = false;
             let has_video = false;
-            console.log("mjw... stream map ");
-            console.log(opts.userToInternalLocalStreamIds); // mjw...
             for (let i = 0; i < opts.localStreams.length; i++) {
                 has_audio = has_audio | opts.localStreams[i].getAudioTracks().length > 0;
                 has_video = has_video | opts.localStreams[i].getVideoTracks().length > 0;
