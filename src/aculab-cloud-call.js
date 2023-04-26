@@ -34,7 +34,8 @@ export class AculabCloudCall {
         this.onConnecting = null;
         this.onMedia = null;
         this.onMediaRemove = null;
-        this.onUserMediaRemove = null;
+        this.onLocalMedia = null;
+        this.onLocalMediaRemove = null;
         this.onConnected = null;
         this.onDisconnect = null;
         
@@ -385,11 +386,17 @@ export class AculabCloudCall {
 
         sdh.onUserMedia = (stream) => {
             let notified = false;
-            if (this.onConnecting) {
+            if (this.onConnecting || this.onLocalMedia) {
                 this.client.console_log('AculabCloudCall calling onConnecting');
                 try {
                     
-                    this.onConnecting({'call': this, "stream": stream});
+                    if (this.onLocalMedia) {
+                        this.onLocalMedia({'call': this, "stream": stream});
+                    } else {
+                        // Legacy callback, from when we supported only
+                        // one stream
+                        this.onConnecting({'call': this, "stream": stream});
+                    }
                     notified = true;
                 }
                 catch(e) {
@@ -401,10 +408,10 @@ export class AculabCloudCall {
 
         sdh.onUserMediaRemove = (stream) => {
             let notified = false;
-            if (this.onUserMediaRemove) {
+            if (this.onLocalMediaRemove) {
                 this.client.console_log('AculabCloudCall calling onUserMediaRemoved');
                 try {
-                    this.onUserMediaRemove({'call': this, "stream": stream});
+                    this.onLocalMediaRemove({'call': this, "stream": stream});
                     notified = true;
                 }
                 catch(e) {
