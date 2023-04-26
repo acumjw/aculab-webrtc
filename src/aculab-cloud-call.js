@@ -195,75 +195,35 @@ export class AculabCloudCall {
             output_video = output_audio;
         }
        
-/*
-        // for output, mute/unmute this._remote_stream's track
-        if (this._remote_stream) {
-            if (this._remote_stream.getTracks)
-            {
-                this._remote_stream.getTracks().forEach((t) => {
-                    if (t.kind == "audio") {
-                        t.enabled = !output_audio;
-                    } else if (t.kind == "video") {
-                        t.enabled = !output_video;
-                    }
-                });
-            }
-        }
-*/
         if (this._remote_streams) {
             this._remote_streams.forEach((stream) => {
-                this.muteStream(stream, output_audio, camera, output_video);
+                this.muteRemoteStream(stream, output_audio, output_video);
             });
         }
-        // for mic, need to get track from session description handler
-        if (this._session && this._session.sessionDescriptionHandler && this._session.sessionDescriptionHandler.peerConnection){
-            var pc = this._session.sessionDescriptionHandler.peerConnection;
-            if (pc.getSenders)
-            {
-                pc.getSenders().forEach(sender => {
-                    if (sender.track) {
-                        if (sender.track.kind == "audio") {
-                            sender.track.enabled = !mic;
-                        } else if (sender.track.kind == "video") {
-                            sender.track.enabled = !camera;
-                            var stream = this._session.sessionDescriptionHandler.localMediaStream;
-                            if (sender.track.enabled) {
-                                this._onLocalVideoUnmute({'call': this, 'stream': stream, 'track': sender.track});
-                            } else {
-                                this._onLocalVideoMute({'call': this, 'stream': stream, 'track': sender.track});
-                            }
-                        }
-                    }
-                });
-            } else {
-                pc.getLocalStreams().forEach(stream => {
-                    stream.getAudioTracks().forEach(track => {
-                        track.enabled = !mic;
-                    });
-                    stream.getVideoTracks().forEach(track => {
-                        track.enabled = !camera;
-                        if (track.enabled) {
-                            this._onLocalVideoUnmute({'call': this, 'stream': stream, 'track': track});
-                        } else {
-                            this._onLocalVideoMute({'call': this, 'stream': stream, 'track': track});
-                        }
-                    });
-                });
-            }
-        }
+
+        this._session.sessionDescriptionHandler.localMediaStreams.forEach((stream) => {
+            this.muteLocalStream(stream, mic, camera);
+	});
     }
 
     muteStream(stream, mic, output_audio, camera, output_video)  {
+        this.client.console_log('AculabCloudCall muteStream(mic=' + mic + ', output_audio=' + output_audio + ', camera=' + camera + ', output_video=' + output_video +')');
+        if (this._session.sessionDescriptionHandler.getInternalStreamId(stream)) {
+            this.muteLocalStream(stream, mic, camera);
+        } else {
+            this.muteRemoteStream(stream, output_audio, output_video);
+        }
+    }
+
+    muteLocalStream(stream, mic, camera) {
+        this.client.console_log('AculabCloudCall muteLocalStream(mic=' + mic + ',  camera=' + camera);
         var internal_stream_id = null;
         if (this._session && this._session.sessionDescriptionHandler) {
-            // FIXME: Handle case where stream is either a user or internal
-            // stream
-            internal_stream_id = this._session.sessionDescriptionHandler.userToInternalLocalStreamIds.get(stream.id);
+            internal_stream_id = this._session.sessionDescriptionHandler.getInternalStreamId(stream);
 	}
         if (internal_stream_id) {
             if (this._session && this._session.sessionDescriptionHandler && this._session.sessionDescriptionHandler.peerConnection){
                 var internal_stream = this._session.sessionDescriptionHandler.getLocalMediaStreamById(internal_stream_id);
-                console.log(internal_stream.getTracks());
                 var pc = this._session.sessionDescriptionHandler.peerConnection;
                 pc.getSenders().forEach(sender => {
                     if (sender.track.id) {
@@ -271,11 +231,10 @@ export class AculabCloudCall {
                         if (sender.track && internal_track) {
                             if (sender.track.kind == "audio") {
                                 sender.track.enabled = !mic;
-//                                internal_track.enabled = !mic;
+                                internal_track.enabled = !mic;
                             } else if (sender.track.kind == "video") {
                                 sender.track.enabled = !camera;
-//                                internal_track.enabled = !camera;
-//                                var stream = this._session.sessionDescriptionHandler.localMediaStream;
+                                internal_track.enabled = !camera;
                                 if (sender.track.enabled) {
                                     this._onLocalVideoUnmute({'call': this, 'stream': internal_stream, 'track': sender.track});
                                 } else {
@@ -286,24 +245,24 @@ export class AculabCloudCall {
                     }
                 });
             }
-        } else  {
-            // console.log("mjw... muting " + stream.id);
-            if (this._remote_streams) {
-                this._remote_streams.forEach((rstream) => {
-                    console.log("mjw... trying remote stream" + rstream.id + " " + stream.id);
-                    if (rstream.id === stream.id) {
-                        console.log("mjw... found remote stream" + rstream.id);
-                        rstream.getTracks().forEach((t) => {
-                            if (t.kind == "audio") {
-                                t.enabled = !output_audio;
-                            } else if (t.kind == "video") {
-                                t.enabled = !output_video;
-                            }
-                        });
-                        return;
-                    }
-                });
-            }
+        }
+    }
+
+    muteRemoteStream(stream, output_audio, output_video) {
+        this.client.console_log('AculabCloudCall muteRemoteStream(output_audio=' + output_audio + ',  output_video=' + output_video);
+        if (this._remote_streams) {
+            this._remote_streams.forEach((rstream) => {
+                if (rstream.id === stream.id) {
+                    rstream.getTracks().forEach((t) => {
+                        if (t.kind == "audio") {
+                            t.enabled = !output_audio;
+                        } else if (t.kind == "video") {
+                            t.enabled = !output_video;
+                        }
+                    });
+                    return;
+                }
+            });
         }
     }
     

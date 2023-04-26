@@ -58,6 +58,18 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
 
         return userStream;
     }
+    getInternalStreamId(stream) {
+        let internalStream = null;
+        this.userToInternalLocalStreamIds.forEach((value, key, table) => {
+            if (key == stream.id) {
+                internalStream = value;
+            } else if (value == stream.id) {
+                internalStream = value;
+	    }
+        });
+
+        return internalStream;
+    }
     addRemoteMediaStream(stream, track) {
         let found = false;
         let internalStreamId = this.remoteMediaStreamsToInternal.get(stream.id);
