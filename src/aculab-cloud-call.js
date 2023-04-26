@@ -294,25 +294,19 @@ export class AculabCloudCall {
         }
     }
     _check_notify_remove_media() {
-        console.log("mjw... checking notify remove media");
         for (let i = this._notified_remote_streams.length - 1; i > 0; i--) {
-            console.log("mjw... checking notified stream " + this._notified_remote_streams[i].id);
             let found = false;
             this._remote_streams.forEach((stream) => {
                 if (this._notified_remote_streams[i].id == stream.id) {
-                    console.log("mjw... found stream in remote streams");
                     found = true;
                 }
             });
             if (!found) {
-                console.log("mjw... removed stream " + this._notified_remote_streams[i]);
                 this.client.console_log('AculabCloudCall calling onMediaRemove');
                 try {
-                    console.log("mjw... before onMediaRemove");
                     this.onMediaRemove({'call': this, 'stream': this._notified_remote_streams[i]});
                 }
                 catch(e) {
-                    console.log("mjw... onMediaRemove error " + e.message);
                     this.client.console_error('AculabCloudCall onMediaRemove caused exception: ' + e.message);
                 }
                 this._notified_remote_streams.splice(i, 1);
@@ -320,16 +314,11 @@ export class AculabCloudCall {
         }
     }
     _check_notify_media() {
-        console.log("mjw... check_notify_media ");
-        console.log(this._remote_streams);
         this._remote_streams.forEach((stream) => {
             this._check_notify_stream(stream);
         });
-        console.log("mjw... check_notify_media , notified streams");
-        console.log(this._notified_remote_streams);
     }
     _check_notify_stream(stream) {
-        console.log("mjw... _check_notify_stream " + this._notified_remote_streams.includes(stream.id) + " " + this._ice_connected);
         let already_notified = false;
         this._notified_remote_streams.forEach((ns) => {
             if (ns.id == stream.id) {
@@ -358,11 +347,9 @@ export class AculabCloudCall {
             }
             this.client.console_log('AculabCloudCall calling onMedia');
             try {
-                console.log("mjw... before onMedia");
                 this.onMedia({'call': this, 'stream': stream});
             }
             catch(e) {
-                console.log("mjw... onMedia error " + e.message);
                 this.client.console_error('AculabCloudCall onMedia caused exception: ' + e.message);
             }
         }
@@ -397,20 +384,15 @@ export class AculabCloudCall {
         this.client.console_log('AculabCloudCall adding media event handlers');
 
         sdh.onUserMedia = (stream) => {
-            console.log("mjw... in ACulabCloudCall onUserMedia");
             let notified = false;
             if (this.onConnecting) {
-                console.log("mjw... in ACulabCloudCall onUserMedia, onConnecting");
                 this.client.console_log('AculabCloudCall calling onConnecting');
                 try {
-                    console.log("mjw... in ACulabCloudCall onUserMedia, before onConnecting");
                     
                     this.onConnecting({'call': this, "stream": stream});
                     notified = true;
-                    console.log("mjw... in ACulabCloudCall onUserMedia, after onConnecting");
                 }
                 catch(e) {
-                    console.log("mjw... in AculabCloudCall failed " + e.message);
                     this.client.console_error('AculabCloudCall onConnecting caused exception:' + e.message);
                 }
             }
@@ -443,37 +425,27 @@ export class AculabCloudCall {
         sdh.peerConnectionDelegate = {
         ontrack: (ev) => {
             
-//https://stackoverflow.com/questions/60636439/webrtc-how-to-detect-when-a-stream-or-track-gets-removed-from-a-peerconnection
-            console.log("mjw... onaddtrack");
             ev.streams[0].onremovetrack = ({track}) => {
-                console.log("mjw... track was removed " + track.id);
                 sdh.removeRemoteMediaTrack(track);
                 if (!ev.streams[0].getTracks().length) {
-                    console.log("mjw... stream is empty " + ev.streams[0].id);
                 }
                 this._remote_streams = sdh.remoteMediaStreams;
                 this._check_notify_remove_media();
             };
 
-            console.log("mjw.... here");
             if (ev.track) {
-                console.log("mjw.... here 1");
                 sdh.addRemoteMediaStream(ev.streams[0], ev.track);
                 this._remote_streams = sdh.remoteMediaStreams;
-                console.log("mjw.... here 2");
                 this._check_notify_media();
-                console.log("mjw.... here 3");
             }
         },
         onaddstream: (ev) => {
             
-            console.log("mjw... onaddstream");
             this._remote_streams = sdh.remoteMediaStreams;
             this._check_notify_media();
             
         },
         oniceconnectionstatechange: () => {
-            console.log("mjw... oniceconnectionstatechange");
             this._remote_stream = sdh.remoteMediaStreams;
             
             var icestate = sdh.peerConnection.iceConnectionState;
