@@ -1,10 +1,11 @@
 import { SessionState } from "sip.js";
+import { MediaEventSessionDescriptionHandler } from "./media-event-session-description-handler.js";
 
 export class AculabCloudCall {
     /**
      * @param {AculabCloudClient} client
      */
-    constructor(client) {
+    constructor(client, reinvite_possible) {
         this.client = client;
         this._session = null;
         this._connected = false;
@@ -14,6 +15,7 @@ export class AculabCloudCall {
         this._ice_connected = false;
         this._termination_reason = '';
         this._sdh_options = undefined;
+        this._allowed_reinvite = reinvite_possible;
         
         /*
          * In order to deal with the fact that react-native-webrtc implemented muted video by stopping the stream
@@ -31,7 +33,8 @@ export class AculabCloudCall {
         
         this.onConnecting = null;
         this.onMedia = null;
-        this.onRmoveMedia = null;
+        this.onMediaRemove = null;
+        this.onUserMediaRemove = null;
         this.onConnected = null;
         this.onDisconnect = null;
         
@@ -349,14 +352,14 @@ export class AculabCloudCall {
             });
             if (!found) {
                 console.log("mjw... removed stream " + this._notified_remote_streams[i]);
-                this.client.console_log('AculabCloudCall calling onRemoveMedia');
+                this.client.console_log('AculabCloudCall calling onMediaRemove');
                 try {
-                    console.log("mjw... before onRemoveMedia");
-                    this.onRemoveMedia({'call': this, 'stream': this._notified_remote_streams[i]});
+                    console.log("mjw... before onMediaRemove");
+                    this.onMediaRemove({'call': this, 'stream': this._notified_remote_streams[i]});
                 }
                 catch(e) {
-                    console.log("mjw... onRemoveMedia error " + e.message);
-                    this.client.console_error('AculabCloudCall onRemoveMedia caused exception: ' + e.message);
+                    console.log("mjw... onMediaRemove error " + e.message);
+                    this.client.console_error('AculabCloudCall onMediaRemove caused exception: ' + e.message);
                 }
                 this._notified_remote_streams.splice(i, 1);
             }
@@ -438,18 +441,41 @@ export class AculabCloudCall {
     }
     _add_media_handlers(sdh) {
         this.client.console_log('AculabCloudCall adding media event handlers');
-        
+
         sdh.onUserMedia = (stream) => {
+            console.log("mjw... in ACulabCloudCall onUserMedia");
+            let notified = false;
             if (this.onConnecting) {
+                console.log("mjw... in ACulabCloudCall onUserMedia, onConnecting");
                 this.client.console_log('AculabCloudCall calling onConnecting');
                 try {
+                    console.log("mjw... in ACulabCloudCall onUserMedia, before onConnecting");
                     
                     this.onConnecting({'call': this, "stream": stream});
+                    notified = true;
+                    console.log("mjw... in ACulabCloudCall onUserMedia, after onConnecting");
                 }
                 catch(e) {
+                    console.log("mjw... in AculabCloudCall failed " + e.message);
                     this.client.console_error('AculabCloudCall onConnecting caused exception:' + e.message);
                 }
             }
+            return notified;
+        }
+
+        sdh.onUserMediaRemove = (stream) => {
+            let notified = false;
+            if (this.onUserMediaRemove) {
+                this.client.console_log('AculabCloudCall calling onUserMediaRemoved');
+                try {
+                    this.onUserMediaRemove({'call': this, "stream": stream});
+                    notified = true;
+                }
+                catch(e) {
+                    this.client.console_error('AculabCloudCall onUserMediaRemoved caused exception:' + e.message);
+                }
+            }
+            return notified;
         }
         
         sdh.onUserMediaFailed = (err) => {
@@ -569,5 +595,117 @@ export class AculabCloudCall {
                 resolve("No peer connection");
             }
         });
+    }
+    addStream(stream) {
+        if (!this._allowed_reinvite) {
+            throw 'addStream not available';
+        }
+        this.client.console_error('AculabCloudOutgoingCall addStream :' + this._session);
+        if (this._session && !this._disconnect_called) {
+            try {
+                let options = this._sdh_options;
+                let internal_stream_id = this._session.sessionDescriptionHandler.userToInternalLocalStreamIds.get(stream.id);
+                let need_adding = false;
+                if (!internal_stream_id) {
+                    console.log("mjw... internal stream ID oes not exist");
+                    let found = false;
+                    options.localStreams.forEach((lstream) => {
+                        if (lstream.id == stream.id) {
+                            found = true;
+                        }
+                    });
+                    if (!found) {
+                        console.log("mjw... needs adding");
+                        need_adding = true;
+                    }
+                }
+                if (need_adding) {
+                    console.log("mjw... pushing");
+                    options.localStreams.push(stream);
+                    console.log("mjw... reinviting");
+                    this.reinvite(options);
+                    console.log("mjw... reinvited");
+                } else {
+                    console.log("mjw... stream already exists");
+                    throw "Stream already exists";
+                }
+            }
+            catch(e) {
+                this.client.console_error('AculabCloudCall: Exception Adding stream: ' + e.message);
+                console.log("mjw... error adding stream " + e.message);
+                throw 'Add stream error';
+            }
+        } else {
+            throw 'Not connected error';
+        }
+    }
+
+    removeStream(stream) {
+        if (!this._allowed_reinvite) {
+            throw 'removeStream not available';
+        }
+        this.client.console_error('AculabCloudOutgoingCall removeStream :' + this._session);
+        if (this._session && !this._disconnect_called) {
+            try {
+                let options = this._sdh_options;
+                console.log("mjw... removeStream ");
+                console.log(options.localStreams); // mjw...
+                let stream_id = this._session.sessionDescriptionHandler.getUserStreamId(stream);
+                console.log("mjw... Got stream id " + stream_id);
+                if (stream_id) {
+                    console.log("mjw... filtering");
+                    options.localStreams = options.localStreams.filter(item => item.id !== stream_id);
+                    console.log("mjw... reinviting");
+                    this.reinvite(options);
+                    console.log("mjw... reinvited");
+                } else {
+                    console.log("mjw... stream does not exist");
+                    throw "Stream does not exist";
+                }
+            }
+            catch(e) {
+                this.client.console_error('AculabCloudCall: Exception Removing stream: ' + e.message);
+                console.log("mjw... error remove stream " + e.message);
+                throw 'Remove stream error';
+            }
+        } else {
+            throw 'Not connected error';
+        }
+    }
+
+    reinvite(options) {
+        if (!this._allowed_reinvite) {
+            throw 'Reinvite not available';
+        }
+        if (options.localStreams === undefined || options.localStreams.length == 0) {
+            throw 'At least one MediaStream needed in options.localStreams';
+        }
+        this.client.console_error('AculabCloudOutgoingCall reinvite :' + this._session);
+        console.log("mjw... reinvite 1");
+        if (this._session && !this._disconnect_called) {
+            try {
+                console.log("mjw... reinvite 2");
+                this._sdh_options = MediaEventSessionDescriptionHandler.fixup_options(options);
+                console.log("mjw... reinvite 3");
+                let opts = {
+                };
+                this._sdh_options.reinvite = true;
+                console.log(this._sdh_options);
+                console.log("mjw... reinvite 20");
+                opts.sessionDescriptionHandlerOptions = this._sdh_options;
+                opts.sessionDescriptionHandlerOptionsReInvite = this._sdh_options;
+                this.client.console_error('AculabCloudCall: new constraints: ' + opts);
+                console.log("mjw... reinvite 50");
+                this.client.console_error(opts);
+                this._session.invite(opts);
+                console.log("mjw... reinvite 60");
+            }
+            catch(e) {
+                this.client.console_error('AculabCloudCall: Exception changing constraints: ' + e.message);
+                throw 'Reinvite error';
+            }
+        } else {
+            throw 'Reinvite error';
+        }
     }
 }

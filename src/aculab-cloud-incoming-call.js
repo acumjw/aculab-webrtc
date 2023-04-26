@@ -8,7 +8,7 @@ export class AculabCloudIncomingCall extends AculabCloudCall {
          * @param {Invitation} session
          */
         constructor(client, session) {
-                super(client);
+                super(client, true);
                 this.session = session;
                 this.answer_pending = false;
                 this._disconnect_called = false;
@@ -88,101 +88,4 @@ export class AculabCloudIncomingCall extends AculabCloudCall {
                 }
                 this.answer_pending = false;
         }
-	addStream(stream) {
-		this.client.console_error('AculabCloudOutgoingCall addStream :' + this._session);
-		if (this._session && !this._disconnect_called) {
-			try {
-				let options = this._sdh_options;
-				let internal_stream_id = this._session.sessionDescriptionHandler.userToInternalLocalStreamIds.get(stream.id);
-				let need_adding = false;
-				if (!internal_stream_id) {
-					console.log("mjw... internal stream ID oes not exist");
-					let found = false;
-					options.localStreams.forEach((lstream) => {
-						if (lstream.id == stream.id) {
-							found = true;
-						}
-					});
-					if (!found) {
-						console.log("mjw... needs adding");
-						need_adding = true;
-					}
-				}
-				if (need_adding) {
-					console.log("mjw... pushing");
-					options.localStreams.push(stream);
-					console.log("mjw... reinviting");
-					this.reinvite(options);
-					console.log("mjw... reinvited");
-				} else {
-					console.log("mjw... stream already exists");
-					throw "Stream already exists";
-				}
-			}
-			catch(e) {
-				this.client.console_error('AculabCloudCall: Exception Adding stream: ' + e.message);
-				console.log("mjw... error adding stream " + e.message);
-				throw 'Add stream error';
-			}
-		} else {
-			throw 'Not connected error';
-		}
-	}
-
-	removeStream(stream) {
-		this.client.console_error('AculabCloudOutgoingCall removeStream :' + this._session);
-		if (this._session && !this._disconnect_called) {
-			try {
-				let options = this._sdh_options;
-				console.log("mjw... removeStream ");
-				console.log(options.localStreams); // mjw...
-				let stream_id = this._session.sessionDescriptionHandler.getUserStreamId(stream);
-				console.log("mjw... Got stream id " + stream_id);
-				if (stream_id) {
-					console.log("mjw... filtering");
-					options.localStreams = options.localStreams.filter(item => item.id !== stream_id);
-					console.log("mjw... reinviting");
-					this.reinvite(options);
-					console.log("mjw... reinvited");
-				} else {
-					console.log("mjw... stream does not exist");
-					throw "Stream does not exist";
-				}
-			}
-			catch(e) {
-				this.client.console_error('AculabCloudCall: Exception Removing stream: ' + e.message);
-				console.log("mjw... error remove stream " + e.message);
-				throw 'Remove stream error';
-			}
-		} else {
-			throw 'Not connected error';
-		}
-	}
-
-	reinvite(options) {
-		this.client.console_error('AculabCloudIncomingCall reinvite :' + this._session);
-		if (options.localStreams === undefined || options.localStreams.length == 0) {
-			throw 'At least one MediaStream needed in options.localStreams';
-		}
-		if (this._session && !this._disconnect_called) {
-			try {
-				this._sdh_options = MediaEventSessionDescriptionHandler.fixup_options(options);
-				let opts = { 
-				};
-				this._sdh_options.reinvite = true;
-				console.log(this._sdh_options);
-				opts.sessionDescriptionHandlerOptions = this._sdh_options;
-				opts.sessionDescriptionHandlerOptionsReInvite = this._sdh_options;
-				this.client.console_error('AculabCloudCall: new constraints: ' + opts);
-				this.client.console_error(opts);
-				this._session.invite(opts);
-			}
-			catch(e) {
-				this.client.console_error('AculabCloudCall: Exception changing constraints: ' + e.message);
-				throw 'Reinvite error';
-			}
-		} else {
-			throw 'Reinvite error';
-		}
-	}
 }
