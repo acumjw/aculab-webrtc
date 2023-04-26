@@ -342,6 +342,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
                 });
             }
 	});
+        this.localMediaStreams = this.localMediaStreams.filter(s => s.id != stream.id);
     }
     async getLocalMediaStreams(options) {
         if (options.constraints === undefined) {
@@ -401,13 +402,44 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
             }
             this.options = options;
             if (this.onUserMedia) {
+                console.log("mjw... doing onUserMedia");
+                console.log(this.notified_streams); //mjw...
 		if (options.localStreams !== undefined) {
+		    let notified_stream_ids = this.notified_streams.map(x => x.id);
                     this.localMediaStreams.forEach((stream) => {
-                        if (!this.notified_streams.includes(stream.id)) {
-                            this.onUserMedia(stream);
-                            this.notified_streams.push(this._localMediaStream);
+                        if (!notified_stream_ids.includes(stream.id)) {
+                            console.log("mjw... notifying UserMedia");
+                            let notified = this.onUserMedia(stream);
+                            console.log("mjw... notified UserMedia " + notified);
+                            if (notified) {
+                                this.notified_streams.push(stream);
+			    }
+                            console.log("mjw... pushed stream");
+                            console.log(this.notified_streams); // mjw...
                         }
                     });
+                }
+            }
+            if (this.onUserMediaRemove) {
+                console.log("mjw... doing onUserMediaRemove");
+		if (options.localStreams !== undefined) {
+		    let local_stream_ids = this.localMediaStreams.map(x => x.id);
+                    console.log("mjw... doing onUserMediaRemoved, local stream ids " + local_stream_ids);
+                    let removed_ids = [];
+                    this.notified_streams.forEach((stream) => {
+                        console.log("mjw... doing onUserMediaRemoved, checking stream " + stream.id);
+                        if (!local_stream_ids.includes(stream.id)) {
+                            let notified = this.onUserMediaRemove(stream);
+                            if (notified) {
+                                removed_ids.push(stream.id);
+                            }
+                        }
+                    });
+                    console.log("mjw... removing streams from notified_streams ");
+                    console.log(this.notified_streams); // mjw...
+                    this.notified_streams = this.notified_streams.filter(stream => !removed_ids.includes(stream.id));
+                    console.log("mjw... after removing streams from notified_streams ");
+                    console.log(this.notified_streams); // mjw...
                 }
             }
             return this.localMediaStreams;
