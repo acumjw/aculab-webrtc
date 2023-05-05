@@ -1,25 +1,9 @@
 import {Web} from 'sip.js';
 
-let RTCPeerConnection;
-let MediaStream;
-let mediaDevices;
-let WebRTCModule;
-
-if (typeof document == 'undefined') {
-    // I'm on the react-native!
-    WebRTCModule = require('react-native').NativeModules.WebRTCModule
-    RTCPeerConnection, MediaStream, mediaDevices = require('react-native-webrtc')
-}
-
 export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionHandler {
     constructor(logger, mediaStreamFactory, sessionDescriptionHandlerConfiguration) {
         super(logger, mediaStreamFactory, sessionDescriptionHandlerConfiguration);
         this.notified_stream = null;
-        this.WebRTC = {
-            MediaStream,
-        getUserMedia: mediaDevices.getUserMedia,
-            RTCPeerConnection
-        };
         this.options = {};
         this.usingOptionsLocalStream = false;
     }
@@ -70,28 +54,13 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
      * @returns {boolean} true if DTMF send is successful, false otherwise
      */
     sendDtmf(indtmf, options) {
-        if (this._peerConnection.getSenders && !WebRTCModule) {
-            return ( super.sendDtmf(indtmf, options));
-        }
-        
         this.logger.debug('AculabCloudCall sendDtmf(' + indtmf + ')');
 
         if (indtmf.match(/[^0-9A-Da-d#*]/) != null) {
             throw 'Invalid DTMF string';
         }
-        
-        if (this._peerConnection) {
-            try {
-                var pc = this._peerConnection;
-                WebRTCModule.peerConnectionSendDTMF(indtmf, 500, 400, pc._pcId);
-            }
-            catch(e) {
-                this.logger.error('AculabCloudCall: Exception sending DTMF: ' + e);
-                throw 'DTMF send error';
-            }
-        } else {
-            throw 'DTMF send error';
-        }
+
+        return ( super.sendDtmf(indtmf, options));
     }
     
     /**
@@ -133,16 +102,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
             this.logger.error("SessionDescriptionHandler.getDescription failed - " + error);
             throw error;
         });
-    }
-
-    async getMediaStreams(constraints)
-    {
-        return await mediaDevices.getUserMedia(constraints);
-    }
-
-    async getMediaDevices()
-    {
-        return await mediaDevices.enumerateDevices();
     }
     
     async getLocalMediaStream(options) {
