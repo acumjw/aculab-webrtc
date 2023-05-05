@@ -34,11 +34,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
     constructor(logger, mediaStreamFactory, sessionDescriptionHandlerConfiguration) {
         super(logger, mediaStreamFactory, sessionDescriptionHandlerConfiguration);
         this.notified_streams = [];
-        this.WebRTC = {
-            MediaStream,
-        getUserMedia: mediaDevices.getUserMedia,
-            RTCPeerConnection
-        };
         this.options = {};
         this.usingOptionsLocalStream = false;
         this.localMediaStreams = [];
