@@ -5,35 +5,10 @@ import {
     Modifiers,
 } from 'sip.js';
 
-
-let rtcPeerConnection;
-let mStream;
-let mediaDevices = "";
-let WebRTCModule;
-
-if (typeof document == 'undefined') {
-    // I'm on the react-native!
-    WebRTCModule = require('react-native').NativeModules.WebRTCModule
-    RTCPeerConnection, MediaStream, mediaDevices = require('react-native-webrtc')
-}
-//var {WebRTCModule} = NativeModules;
-
-
-function defer() {
-    const deferred = {};
-    deferred.promise = new Promise((resolve, reject) => {
-        deferred.resolve = resolve;
-        deferred.reject = reject;
-    });
-    return deferred;
-}
-
-//registerGlobals();
-
 export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionHandler {
     constructor(logger, mediaStreamFactory, sessionDescriptionHandlerConfiguration) {
         super(logger, mediaStreamFactory, sessionDescriptionHandlerConfiguration);
-        this.notified_streams = [];
+        this.notified_stream = null;
         this.options = {};
         this.usingOptionsLocalStream = false;
         this.localMediaStreams = [];
@@ -194,28 +169,12 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
      * @returns {boolean} true if DTMF send is successful, false otherwise
      */
     sendDtmf(indtmf, options) {
-        if (this._peerConnection.getSenders) {
-            return ( super.sendDtmf(indtmf, options));
-        }
-        
-        
         this.logger.debug('AculabCloudCall sendDtmf(' + indtmf + ')');
         if (indtmf.match(/[^0-9A-Da-d#*]/) != null) {
             throw 'Invalid DTMF string';
         }
         
-        if (this._peerConnection) {
-            try {
-                var pc = this._peerConnection;
-                WebRTCModule.peerConnectionSendDTMF(indtmf, 500, 400, pc._peerConnectionId);
-            }
-            catch(e) {
-                this.logger.error('AculabCloudCall: Exception sending DTMF: ' + e);
-                throw 'DTMF send error';
-            }
-        } else {
-            throw 'DTMF send error';
-        }
+        return ( super.sendDtmf(indtmf, options));
     }
     
     /**
@@ -253,14 +212,6 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
             this.logger.error("SessionDescriptionHandler.getDescription failed - " + error);
             throw error;
         });
-    }
-    async getMediaStreams(constraints)
-    {
-        return await mediaDevices.getUserMedia(constraints);
-    }
-    async getMediaDevices()
-    {
-        return await mediaDevices.enumerateDevices();
     }
     getLocalMediaStreamById(id) {
         var stream = null;

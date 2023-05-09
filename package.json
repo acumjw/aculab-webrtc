@@ -1,10 +1,10 @@
 {
   "name": "aculab-webrtc",
-  "version": "3.2.1",
+  "version": "3.3.0",
   "main": "src/index.js",
   "type": "module",
   "dependencies": {
-    "sip.js": "^0.21.0"
+    "sip.js": "^0.21.2"
   },
   "devDependencies": {
     "eslint": "^7.20.0",

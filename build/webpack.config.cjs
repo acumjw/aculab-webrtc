@@ -38,10 +38,6 @@ module.exports = function (env) {
       libraryTarget: 'umd',
       globalObject: 'this'
     },
-    externals: [
-        'react-native',
-        'react-native-webrtc'
-    ],
     node: false,
     resolve: {
       extensions: ['.js']
