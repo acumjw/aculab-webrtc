@@ -1,9 +1,4 @@
-import {
-    Web,
-    EmitterImpl,
-    SessionDescriptionHandlerError,
-    Modifiers,
-} from 'sip.js';
+import {Web} from 'sip.js';
 
 export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionHandler {
     constructor(logger, mediaStreamFactory, sessionDescriptionHandlerConfiguration) {
@@ -173,7 +168,7 @@ export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionH
         if (indtmf.match(/[^0-9A-Da-d#*]/) != null) {
             throw 'Invalid DTMF string';
         }
-        
+
         return ( super.sendDtmf(indtmf, options));
     }
     
