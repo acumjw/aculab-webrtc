@@ -37,7 +37,7 @@ Running
 -------
 
 To run the WebRTC demo app, run:
-  python3 webrtc.py
+  python3 webrtcws.py
 
 You can access the WebRTC demo at https://[your-ip-address]:3918/.
 
