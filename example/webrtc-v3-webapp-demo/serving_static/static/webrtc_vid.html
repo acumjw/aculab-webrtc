@@ -11,7 +11,10 @@
 	<table>
 		<tr>
 			<td>Step 1: Enter a Client ID name and click Create to register with WebRTC</td>
-			<td>Step 2: (optional) Click "Generate token" then click "Enable" to enable incoming calls</td>
+			<td>
+				Step 2: Click "Generate token" then click "Enable" to enable incoming calls
+				<br><i style="font-size: small; opacity: 0.6;">(optional) This step can be skipped when calling a service</i>
+			</td>
 		</tr>
 		<tr>
 			<td style="padding:10px">
@@ -36,7 +39,7 @@
 					<button id="create_button" type="button" onclick="make_client()">Create</button>
 					<button id="del_button" type="button" onclick="dtor_client()" disabled=true>Destroy</button>
 				</td></tr><tr><td>
-					<input id="con_state" size=60 value="Not conntected" disabled=true>
+					<input id="con_state" size=60 value="Not connected" disabled=true>
 				</td></tr></table>
 			</td>
 			<td style="padding:10px">

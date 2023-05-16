@@ -37,7 +37,7 @@ Running
 -------
 
 To run the WebRTC demo app, run:
-  python3 webercws.py
+  python3 webrtc.py
 
 You can access the WebRTC demo at https://[your-ip-address]:3918/.
 
@@ -56,7 +56,9 @@ Step 1:  Enter a Client ID name and click Create to register with WebRTC
 The Client ID identifies the user of this WebRTC instance.  Choose something
 unique for each browser instance connected to this demo.
 
-Step 2: (optional) Click "Generate token" then, when the "Client token" box
+Step 2: (optional) This step can be skipped when a calling a service.
+
+Click "Generate token" then, when the "Client token" box
 has been filled in, click "Enable" to enable incoming calls.
 
 The "Token TTL (seconds)" box shows how long the token will live, and it
