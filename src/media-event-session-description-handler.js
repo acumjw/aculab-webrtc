@@ -3,11 +3,11 @@ import {Web} from 'sip.js';
 export class MediaEventSessionDescriptionHandler extends Web.SessionDescriptionHandler {
     constructor(logger, mediaStreamFactory, sessionDescriptionHandlerConfiguration) {
         super(logger, mediaStreamFactory, sessionDescriptionHandlerConfiguration);
-        this.notified_stream = null;
         this.options = {};
         this.usingOptionsLocalStream = false;
         this.localMediaStreams = [];
         this._acuRemoteMediaStreams = [];
+        this.notified_streams = [];
         this.userToInternalLocalStreamIds = new Map();
         this.remoteMediaStreamsToInternal = new Map();
     }
