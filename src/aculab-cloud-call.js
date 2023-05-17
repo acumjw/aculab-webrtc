@@ -1,5 +1,6 @@
 import { SessionState } from "sip.js";
 import { MediaEventSessionDescriptionHandler } from "./media-event-session-description-handler.js";
+import { v4 as uuidV4 } from 'uuid';
 
 export class AculabCloudCall {
     /**
@@ -133,6 +134,7 @@ export class AculabCloudCall {
     set session(sess) {
         this._session = sess;
         this._callId = sess.request.callId;
+        this._callUuid = uuidV4();
         this._session.delegate = {
         onBye: (bye) => {
             // extract reason from BYE message
