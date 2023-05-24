@@ -277,7 +277,7 @@ export class AculabCloudCall {
         this._session = null;
         var cause = this._termination_reason || "NORMAL";
         this.client.console_log('term: ' + cause);
-        this._remote_stream = null;
+        this._remote_streams = null;
         if (this._sdh_options && this._sdh_options.localStream) {
             this._sdh_options.localStreams.forEach((stream) => {
                 stream.forEach((track) => {
@@ -455,7 +455,7 @@ export class AculabCloudCall {
             
         },
         oniceconnectionstatechange: () => {
-            this._remote_stream = sdh.remoteMediaStreams;
+            this._remote_streams = sdh.remoteMediaStreams;
             
             var icestate = sdh.peerConnection.iceConnectionState;
             if (icestate == 'connected' || icestate == 'completed') {
