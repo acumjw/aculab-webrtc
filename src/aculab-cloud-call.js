@@ -16,6 +16,7 @@ export class AculabCloudCall {
         this._ice_connected = false;
         this._termination_reason = '';
         this._sdh_options = undefined;
+        this._callUuid = uuidV4();
         this._allowed_reinvite = reinvite_possible;
         
         /*
@@ -40,6 +41,10 @@ export class AculabCloudCall {
         this.onConnected = null;
         this.onDisconnect = null;
         
+    }
+
+    get callUuid() {
+        return this._callUuid;
     }
 
     // add setters for backwards compatibility
@@ -134,7 +139,6 @@ export class AculabCloudCall {
     set session(sess) {
         this._session = sess;
         this._callId = sess.request.callId;
-        this._callUuid = uuidV4();
         this._session.delegate = {
         onBye: (bye) => {
             // extract reason from BYE message
@@ -424,6 +428,7 @@ export class AculabCloudCall {
         }
         
         sdh.onUserMediaFailed = (err) => {
+            console.log("mjw... onUserMediaFailed ", err);
             this.client.console_error('AculabCloudCall getUserMedia failed - ' + err);
             // store error, so we can report correct reason in onDisconnect callback
             if (this._termination_reason == '') {
